@@ -1,101 +1,78 @@
 """
-Client Email universel IMAP/SMTP pour la lecture, le tri et la création de brouillons.
+Client Email Universel (IMAP / SMTP) ultra-rapide et sécurisé.
+Gère la Boîte de Réception, le dossier [Gmail]/Spam, la création de Brouillons,
+la Restauration de spam vers INBOX et le déplacement vers la Corbeille.
 """
-import imaplib
-import smtplib
+import os
+import sys
 import email
 from email.header import decode_header
+import imaplib
+import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
-import time
-import os
+from typing import List, Optional, Dict, Any, Tuple
+from dataclasses import dataclass
 import re
+
+# Taille max de sécurité pour l'analyse
+MAX_EMAIL_BODY_LENGTH = 15000
+
+
+@dataclass
+class EmailMessageData:
+    uid: str
+    subject: str
+    sender_name: str
+    sender_email: str
+    date_str: str
+    date_obj: Optional[datetime]
+    body_text: str
+    body_html: str
+    list_unsubscribe: str
+    message_id: str
+    references: str
+    raw_message: Optional[email.message.Message] = None
 
 
 def decode_str(header_value: Optional[str]) -> str:
-    """Décode les en-têtes d'email encodés (ex: UTF-8, ISO-8859-1)."""
+    """Décode les en-têtes email encodés selon RFC 2047."""
     if not header_value:
         return ""
     try:
-        decoded_fragments = decode_header(header_value)
+        decoded_parts = decode_header(header_value)
         result = []
-        for fragment, encoding in decoded_fragments:
-            if isinstance(fragment, bytes):
-                if encoding:
-                    try:
-                        result.append(fragment.decode(encoding, errors="replace"))
-                    except LookupError:
-                        result.append(fragment.decode("utf-8", errors="replace"))
-                else:
-                    result.append(fragment.decode("utf-8", errors="replace"))
+        for part, encoding in decoded_parts:
+            if isinstance(part, bytes):
+                try:
+                    result.append(part.decode(encoding or "utf-8", errors="replace"))
+                except Exception:
+                    result.append(part.decode("latin1", errors="replace"))
             else:
-                result.append(str(fragment))
-        return "".join(result)
+                result.append(str(part))
+        return "".join(result).strip()
     except Exception:
-        return str(header_value)
-
-
-class EmailMessageData:
-    def __init__(
-        self,
-        uid: str,
-        subject: str,
-        sender_name: str,
-        sender_email: str,
-        date_str: str,
-        date_obj: Optional[datetime],
-        body_text: str,
-        body_html: str,
-        list_unsubscribe: str,
-        message_id: str,
-        references: str,
-        raw_message: email.message.Message,
-    ):
-        self.uid = uid
-        self.subject = subject
-        self.sender_name = sender_name
-        self.sender_email = sender_email
-        self.date_str = date_str
-        self.date_obj = date_obj
-        self.body_text = body_text
-        self.body_html = body_html
-        self.list_unsubscribe = list_unsubscribe
-        self.message_id = message_id
-        self.references = references
-        self.raw_message = raw_message
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "uid": self.uid,
-            "subject": self.subject,
-            "sender_name": self.sender_name,
-            "sender_email": self.sender_email,
-            "date": self.date_str,
-            "snippet": self.body_text[:200].strip(),
-            "has_unsubscribe": bool(self.list_unsubscribe),
-            "list_unsubscribe": self.list_unsubscribe,
-        }
+        return str(header_value).strip()
 
 
 class UniversalEmailClient:
-    def __init__(self, config: Dict[str, Any], env_email: Optional[str] = None, env_password: Optional[str] = None):
+    """Client IMAP et SMTP universel avec support Gmail approfondi."""
+
+    def __init__(self, config: Dict[str, Any], env_email: str = None, env_password: str = None):
         self.config = config
         self.email_address = env_email or os.getenv("EMAIL_ADDRESS", "")
         self.password = env_password or os.getenv("EMAIL_PASSWORD", "")
         self.imap_server = config.get("imap_server", "imap.gmail.com")
-        self.imap_port = config.get("imap_port", 993)
+        self.imap_port = int(config.get("imap_port", 993))
         self.smtp_server = config.get("smtp_server", "smtp.gmail.com")
-        self.smtp_port = config.get("smtp_port", 465)
-        self.drafts_folder = config.get("drafts_folder", "[Gmail]/Brouillons")
-        self.trash_folder = config.get("trash_folder", "[Gmail]/Corbeille")
+        self.smtp_port = int(config.get("smtp_port", 587))
         self.imap: Optional[imaplib.IMAP4_SSL] = None
 
     def connect(self) -> bool:
         """Établit la connexion IMAP sécurisée."""
         if not self.email_address or not self.password:
-            raise ValueError("EMAIL_ADDRESS ou EMAIL_PASSWORD manquant dans l'environnement ou le fichier .env")
+            raise ValueError("EMAIL_ADDRESS ou EMAIL_PASSWORD manquant dans .env")
 
         try:
             self.imap = imaplib.IMAP4_SSL(self.imap_server, self.imap_port)
@@ -117,7 +94,12 @@ class UniversalEmailClient:
                 pass
             self.imap = None
 
-    def _extract_body(self, msg: email.message.Message) -> tuple[str, str]:
+    def _format_folder_name(self, folder: str) -> str:
+        """Formate correctement le nom du dossier pour le protocole IMAP Gmail."""
+        folder_clean = folder.replace('"', '').strip()
+        return f'"{folder_clean}"'
+
+    def _extract_body(self, msg: email.message.Message) -> Tuple[str, str]:
         """Extrait le texte brut et le contenu HTML d'un message."""
         body_text = ""
         body_html = ""
@@ -154,7 +136,6 @@ class UniversalEmailClient:
             except Exception:
                 pass
 
-        # Si seul le HTML est disponible, créer une version texte nettoyée simple
         if not body_text and body_html:
             clean_text = re.sub(r"<style.*?</style>", "", body_html, flags=re.DOTALL | re.IGNORECASE)
             clean_text = re.sub(r"<script.*?</script>", "", clean_text, flags=re.DOTALL | re.IGNORECASE)
@@ -162,29 +143,35 @@ class UniversalEmailClient:
             clean_text = re.sub(r"\s+", " ", clean_text)
             body_text = clean_text.strip()
 
-        return body_text.strip(), body_html.strip()
+        return body_text.strip()[:MAX_EMAIL_BODY_LENGTH], body_html.strip()
 
     def fetch_emails(
         self,
         folder: str = "INBOX",
-        unread_only: bool = True,
-        since_days: int = 7,
-        limit: int = 15,
+        unread_only: bool = False,
+        since_days: int = 30,
+        limit: int = 30,
     ) -> List[EmailMessageData]:
-        """Récupère les emails correspondant aux critères de manière ultra-rapide."""
+        """Récupère les emails correspondant aux critères avec support des dossiers spéciaux."""
         if not self.imap:
             self.connect()
 
-        self.imap.select(folder, readonly=True)
+        folder_arg = self._format_folder_name(folder)
+        status, _ = self.imap.select(folder_arg, readonly=True)
+        if status != "OK":
+            # Essai sans guillemets si échec
+            status, _ = self.imap.select(folder.replace('"', ''), readonly=True)
+            if status != "OK":
+                return []
 
-        # Recherche optimisée
+        # Recherche des emails
         data = None
         if unread_only:
             try:
                 status, data = self.imap.search(None, "UNSEEN")
             except Exception:
                 status = "ERROR"
-        
+
         if not unread_only or not data or not data[0]:
             try:
                 status, data = self.imap.search(None, "ALL")
@@ -214,7 +201,6 @@ class UniversalEmailClient:
                 message_id = msg.get("Message-ID", "")
                 references = msg.get("References", "") or message_id
 
-                # Extraction nom et email
                 sender_email = ""
                 sender_name = from_header
                 email_match = re.search(r"<([^>]+)>", from_header)
@@ -228,7 +214,7 @@ class UniversalEmailClient:
 
                 messages.append(
                     EmailMessageData(
-                        uid=num.decode("utf-8", errors="ignore"),
+                        uid=num.decode("utf-8") if isinstance(num, bytes) else str(num),
                         subject=subject,
                         sender_name=sender_name or sender_email,
                         sender_email=sender_email,
@@ -242,150 +228,44 @@ class UniversalEmailClient:
                         raw_message=msg,
                     )
                 )
-            except Exception as e:
+            except Exception:
                 continue
 
         return messages
 
-    def create_draft(
-        self,
-        original_msg: EmailMessageData,
-        draft_body: str,
-        draft_subject: Optional[str] = None,
-        dry_run: bool = False,
-    ) -> bool:
-        """Crée un brouillon de réponse dans le dossier Brouillons du compte."""
-        if dry_run:
-            return True
+    def fetch_spam_emails(self, limit: int = 50) -> List[EmailMessageData]:
+        """Récupère l'intégralité des emails situés dans le dossier [Gmail]/Spam."""
+        return self.fetch_emails(folder="[Gmail]/Spam", unread_only=False, limit=limit)
 
+    def restore_to_inbox(self, uid: str, from_folder: str = "[Gmail]/Spam") -> bool:
+        """Déplace un email du dossier Spam vers la boîte de réception principale (INBOX)."""
         if not self.imap:
             self.connect()
 
+        folder_arg = self._format_folder_name(from_folder)
         try:
-            subject = draft_subject or f"Re: {original_msg.subject}"
-            if not subject.lower().startswith("re:"):
-                subject = f"Re: {subject}"
-
-            msg = MIMEMultipart()
-            msg["From"] = self.email_address
-            msg["To"] = original_msg.sender_email
-            msg["Subject"] = subject
-            msg["Date"] = email.utils.formatdate(localtime=True)
-
-            if original_msg.message_id:
-                msg["In-Reply-To"] = original_msg.message_id
-                refs = f"{original_msg.references} {original_msg.message_id}".strip()
-                msg["References"] = refs
-
-            msg.attach(MIMEText(draft_body, "plain", "utf-8"))
-
-            # Sélectionner le dossier des brouillons ou tenter de le localiser
-            drafts_folder = self._find_drafts_folder()
-            
-            # Utiliser APPEND pour injecter le message avec le flag \Draft
-            raw_bytes = msg.as_bytes()
-            now = imaplib.Time2Internaldate(time.time())
-            flags = "(\\Draft \\Seen)"
-
-            status, _ = self.imap.append(drafts_folder, flags, now, raw_bytes)
-            return status == "OK"
-        except Exception as e:
-            print(f"[Avertissement] Erreur lors de la création du brouillon : {e}")
-            return False
-
-    def _find_drafts_folder(self) -> str:
-        """Détecte le nom exact du dossier Brouillons sur le serveur IMAP."""
-        if not self.imap:
-            self.connect()
-
-        # Essai avec le dossier configuré
-        configured = self.config.get("drafts_folder", "[Gmail]/Brouillons")
-        try:
-            status, _ = self.imap.select(f'"{configured}"', readonly=True)
-            if status == "OK":
-                return f'"{configured}"'
-        except Exception:
-            pass
-
-        # Recherche dans la liste des dossiers
-        status, folder_list = self.imap.list()
-        if status == "OK" and folder_list:
-            for item in folder_list:
-                item_str = item.decode("utf-8", errors="ignore")
-                # Recherche des noms communs
-                for candidate in ["\\Drafts", "Drafts", "Brouillons", "[Gmail]/Brouillons", "[Gmail]/Drafts"]:
-                    if candidate.lower() in item_str.lower():
-                        # Extraction du nom du dossier
-                        parts = item_str.split(' "/" ')
-                        if len(parts) > 1:
-                            return parts[-1].strip()
-                        parts_space = item_str.split(' "')
-                        if len(parts_space) > 1:
-                            folder_name = parts_space[-1].rstrip('"')
-                            return f'"{folder_name}"'
-
-        return '"Drafts"'
-
-    def _find_spam_folder(self) -> str:
-        """Détecte le nom exact du dossier Spam sur le serveur IMAP."""
-        if not self.imap:
-            self.connect()
-
-        configured = self.config.get("spam_folder", "[Gmail]/Spam")
-        try:
-            status, _ = self.imap.select(f'"{configured}"', readonly=True)
-            if status == "OK":
-                return f'"{configured}"'
-        except Exception:
-            pass
-
-        status, folder_list = self.imap.list()
-        if status == "OK" and folder_list:
-            for item in folder_list:
-                item_str = item.decode("utf-8", errors="ignore")
-                for candidate in ["\\Junk", "Spam", "[Gmail]/Spam", "[Gmail]/Pourriel", "Junk Email", "Junk"]:
-                    if candidate.lower() in item_str.lower():
-                        parts = item_str.split(' "/" ')
-                        if len(parts) > 1:
-                            return parts[-1].strip()
-                        parts_space = item_str.split(' "')
-                        if len(parts_space) > 1:
-                            folder_name = parts_space[-1].rstrip('"')
-                            return f'"{folder_name}"'
-
-        return '"[Gmail]/Spam"'
-
-    def fetch_spam_emails(self, limit: int = 25) -> List[EmailMessageData]:
-        """Récupère les emails situés dans le dossier Spam."""
-        spam_folder = self._find_spam_folder().replace('"', '')
-        return self.fetch_emails(folder=spam_folder, unread_only=False, limit=limit)
-
-    def restore_to_inbox(self, uid: str, from_folder: Optional[str] = None) -> bool:
-        """Déplace un email du dossier Spam vers la boîte de réception (INBOX)."""
-        if not self.imap:
-            self.connect()
-
-        folder = from_folder or self._find_spam_folder()
-        try:
-            self.imap.select(folder)
+            self.imap.select(folder_arg)
+            # Copier vers INBOX
             copy_status, _ = self.imap.copy(uid, "INBOX")
             if copy_status == "OK":
                 self.imap.store(uid, "+FLAGS", "\\Deleted")
                 self.imap.expunge()
                 return True
-        except Exception as e:
+        except Exception:
             pass
         return False
 
     def move_to_trash(self, uid: str, from_folder: str = "INBOX", dry_run: bool = False) -> bool:
-        """Déplace un email vers la corbeille ou le marque pour suppression."""
+        """Déplace un email vers la corbeille Gmail ou le supprime."""
         if dry_run:
             return True
         if not self.imap:
             self.connect()
+
+        folder_arg = self._format_folder_name(from_folder)
         try:
-            self.imap.select(from_folder)
-            trash_folder = self.config.get("trash_folder", "[Gmail]/Corbeille")
+            self.imap.select(folder_arg)
+            trash_folder = self._format_folder_name(self.config.get("trash_folder", "[Gmail]/Corbeille"))
             copy_status, _ = self.imap.copy(uid, trash_folder)
             if copy_status == "OK":
                 self.imap.store(uid, "+FLAGS", "\\Deleted")
@@ -395,5 +275,53 @@ class UniversalEmailClient:
                 self.imap.store(uid, "+FLAGS", "\\Deleted")
                 self.imap.expunge()
                 return True
-        except Exception as e:
+        except Exception:
             return False
+
+    def create_draft(
+        self,
+        original_msg: EmailMessageData,
+        draft_body: str,
+        draft_subject: str = "",
+        dry_run: bool = False,
+    ) -> bool:
+        """Crée un brouillon de réponse dans le dossier [Gmail]/Brouillons."""
+        if dry_run:
+            return True
+
+        if not self.imap:
+            self.connect()
+
+        msg = MIMEMultipart("alternative")
+        msg["From"] = self.email_address
+        msg["To"] = original_msg.sender_email
+        msg["Subject"] = draft_subject or f"Re: {original_msg.subject}"
+
+        if original_msg.message_id:
+            msg["In-Reply-To"] = original_msg.message_id
+            msg["References"] = f"{original_msg.references} {original_msg.message_id}".strip()
+
+        msg.attach(MIMEText(draft_body, "plain", "utf-8"))
+
+        drafts_folder = self._format_folder_name(self.config.get("drafts_folder", "[Gmail]/Brouillons"))
+        try:
+            raw_msg = msg.as_bytes()
+            status, _ = self.imap.append(
+                drafts_folder,
+                "(\\Draft \\Seen)",
+                imaplib.Time2Internaldate(datetime.now()),
+                raw_msg,
+            )
+            return status == "OK"
+        except Exception:
+            # Essai avec le nom simple "Drafts"
+            try:
+                status, _ = self.imap.append(
+                    '"Drafts"',
+                    "(\\Draft \\Seen)",
+                    imaplib.Time2Internaldate(datetime.now()),
+                    msg.as_bytes(),
+                )
+                return status == "OK"
+            except Exception:
+                return False

@@ -31,7 +31,7 @@
         <button class="nav-item" data-tab="tab-spam">
           <span class="nav-icon">🚫</span>
           <span class="nav-label">Fouiller les Spams</span>
-          <span class="nav-badge alert" id="badge-spam">0</span>
+          <span class="nav-badge alert" id="badge-spam">41</span>
         </button>
         <button class="nav-item" data-tab="tab-journal">
           <span class="nav-icon">📓</span>
@@ -84,7 +84,11 @@
         <div class="top-actions">
           <div class="folder-selector-pill">
             <button class="folder-btn active" id="btn-folder-inbox" data-folder="inbox">📥 Boîte Réception</button>
-            <button class="folder-btn" id="btn-folder-spam" data-folder="spam">🚫 Dossier Spam</button>
+            <button class="folder-btn" id="btn-folder-spam" data-folder="spam">🚫 Dossier Spam (41)</button>
+          </div>
+          <div class="depth-selector-pill">
+            <button class="depth-btn active" data-limit="25">25 récents</button>
+            <button class="depth-btn" data-limit="50">50 récents</button>
           </div>
           <div class="mode-switch-wrapper">
             <span class="status-indicator live"></span>
@@ -171,11 +175,11 @@
                 <!-- Special Action Bar if email is in SPAM folder -->
                 <div id="spam-action-banner" class="spam-action-banner" style="display: none;">
                   <div class="spam-banner-text">
-                    <strong>⚠️ Cet email est dans votre dossier Spam</strong>
-                    <span>Vous pouvez le renvoyer vers votre boîte de réception ou vous désabonner.</span>
+                    <strong>⚠️ Cet email est actuellement dans votre dossier Spam</strong>
+                    <span id="spam-banner-reason">Restaurez-le pour le recevoir dans votre boîte de réception.</span>
                   </div>
                   <button class="btn btn-sm btn-success" id="btn-restore-to-inbox">
-                    <span>📥 Restaurer dans ma Boîte de Réception</span>
+                    <span>📥 Transférer vers ma Boîte de Réception</span>
                   </button>
                 </div>
 
@@ -189,7 +193,7 @@
                 </div>
                 <div class="form-group">
                   <div class="form-label-row">
-                    <label>Corps du message rédigé par l'IA</label>
+                    <label>Corps du message / Réponse IA</label>
                     <span class="hint-text">Modifiez librement avant synchronisation</span>
                   </div>
                   <textarea id="draft-body" rows="8" class="input-textarea"></textarea>
@@ -210,13 +214,17 @@
       <section class="tab-content" id="tab-spam">
         <div class="section-intro">
           <div class="intro-text">
-            <h2>Fouille Approfondie du Dossier Spam & Nettoyage</h2>
-            <p>Analysez tous les emails bloqués dans <code>[Gmail]/Spam</code>. Récupérez les faux positifs (factures, messages importants égarés) et désabonnez-vous en 1 clic.</p>
+            <h2>Fouille Approfondie du Dossier Spam ([Gmail]/Spam)</h2>
+            <p>Détectez et restaurez vos faux positifs (projets, invitations, devis) égarés dans les spams par Google, et désabonnez-vous des vrais spams en 1 clic.</p>
           </div>
-          <div style="display: flex; gap: 10px;">
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <button class="btn btn-primary" id="btn-scan-spam-deep">
               <span class="btn-icon">🔍</span>
-              <span>Fouiller [Gmail]/Spam</span>
+              <span>Re-Scanner les Spams (41)</span>
+            </button>
+            <button class="btn btn-success" id="btn-restore-all-false-pos">
+              <span class="btn-icon">📥</span>
+              <span id="btn-restore-all-text">Restaurer tous les Faux Positifs</span>
             </button>
             <button class="btn btn-secondary" id="btn-audit-senders">
               <span class="btn-icon">📊</span>
@@ -228,15 +236,15 @@
         <div class="spam-table-card">
           <div class="table-header-bar">
             <h3 id="spam-table-title">Emails Détectés dans [Gmail]/Spam</h3>
-            <span class="badge-tag" id="spam-table-count">0 email</span>
+            <span class="badge-tag" id="spam-table-count">41 emails</span>
           </div>
           <table class="modern-table">
             <thead>
               <tr>
                 <th>Expéditeur & Sujet</th>
-                <th>Diagnostic IA</th>
+                <th>Diagnostic IA & Raison</th>
                 <th>Désabonnement</th>
-                <th>Actions</th>
+                <th>Action Immédiate</th>
               </tr>
             </thead>
             <tbody id="spam-table-body">

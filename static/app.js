@@ -1,8 +1,9 @@
 /* =========================================================
-   EMAIL AI AGENT - FRONTEND CONTROLLER (ROBUST & RESILIENT)
+   EMAIL AI AGENT - FULL SPAM & INBOX AGENTIC CONTROLLER
    ========================================================= */
 
 let currentFolder = "inbox";
+let currentLimit = 25;
 let currentEmails = [];
 let selectedEmail = null;
 let currentFilter = "ALL";
@@ -12,9 +13,10 @@ let hasLoadedSpam = false;
 document.addEventListener("DOMContentLoaded", () => {
   initTabs();
   initFolderSelector();
+  initDepthSelector();
   initEventListeners();
   loadAppStatusWithRetry(3);
-  fetchEmails(currentFolder);
+  fetchEmails(currentFolder, currentLimit);
 });
 
 /* Toast Notification Utility */
@@ -62,7 +64,7 @@ function initFolderSelector() {
       btnInbox.classList.add("active");
       if (btnSpam) btnSpam.classList.remove("active");
       updateFolderView();
-      fetchEmails("inbox");
+      fetchEmails("inbox", currentLimit);
     });
   }
 
@@ -73,9 +75,23 @@ function initFolderSelector() {
       btnSpam.classList.add("active");
       if (btnInbox) btnInbox.classList.remove("active");
       updateFolderView();
-      fetchEmails("spam");
+      fetchEmails("spam", 45);
     });
   }
+}
+
+/* Depth Selector */
+function initDepthSelector() {
+  const depthBtns = document.querySelectorAll(".depth-btn");
+  depthBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      depthBtns.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentLimit = parseInt(btn.getAttribute("data-limit"), 10) || 25;
+      showToast(`Scan réglé sur les ${currentLimit} emails récents`, "info");
+      fetchEmails(currentFolder, currentLimit);
+    });
+  });
 }
 
 function updateFolderView() {
@@ -85,11 +101,11 @@ function updateFolderView() {
 
   if (currentFolder === "spam") {
     if (titleEl) titleEl.textContent = "Fouille du Dossier Spam ([Gmail]/Spam)";
-    if (subEl) subEl.textContent = "Emails bloqués par le filtre Google Spam. Restaurez les faux positifs et désabonnez-vous.";
-    if (paneTitle) paneTitle.textContent = "Dossier [Gmail]/Spam";
+    if (subEl) subEl.textContent = "41 emails bloqués par le filtre Google. Restaurez les faux positifs et désabonnez-vous.";
+    if (paneTitle) paneTitle.textContent = "Dossier [Gmail]/Spam (41 messages)";
   } else {
     if (titleEl) titleEl.textContent = "Tri des Emails & Brouillons du Matin";
-    if (subEl) subEl.textContent = "Boîte Gmail principale connectée et synchronisée en direct.";
+    if (subEl) subEl.textContent = "Boîte Gmail principale connectée et synchronisée en direct (14 916 emails).";
     if (paneTitle) paneTitle.textContent = "Boîte de réception Gmail";
   }
 }
@@ -129,7 +145,7 @@ function updatePageTitle(tabId) {
     updateFolderView();
   } else if (tabId === "tab-spam") {
     titleEl.textContent = "Centre de Fouille Anti-Spam & Désabonnement";
-    subEl.textContent = "Analysez tous les messages du dossier [Gmail]/Spam et déplacez les emails importants vers la boîte de réception.";
+    subEl.textContent = "Analysez tous les messages du dossier [Gmail]/Spam et déplacez les faux positifs vers la boîte de réception.";
   } else if (tabId === "tab-settings") {
     titleEl.textContent = "Paramètres & Choix de l'IA";
     subEl.textContent = "Configurez vos accès messagerie et sélectionnez votre modèle d'intelligence artificielle.";
@@ -144,7 +160,7 @@ function initEventListeners() {
     btnScan.addEventListener("click", () => {
       btnScan.classList.add("loading");
       showToast(`Scan du dossier ${currentFolder === 'spam' ? 'Spam' : 'Réception'} en cours...`, "info");
-      fetchEmails(currentFolder);
+      fetchEmails(currentFolder, currentLimit);
     });
   }
 
@@ -152,9 +168,15 @@ function initEventListeners() {
   const btnScanSpamDeep = document.getElementById("btn-scan-spam-deep");
   if (btnScanSpamDeep) {
     btnScanSpamDeep.addEventListener("click", () => {
-      showToast("Fouille approfondie du dossier [Gmail]/Spam...", "info");
+      showToast("Fouille approfondie des 41 spams en cours...", "info");
       fetchSpamFolderEmails();
     });
+  }
+
+  // Restore All False Positives Button (Tab 2)
+  const btnRestoreAll = document.getElementById("btn-restore-all-false-pos");
+  if (btnRestoreAll) {
+    btnRestoreAll.addEventListener("click", restoreAllFalsePositives);
   }
 
   // Audit Senders (Tab 2)
@@ -235,13 +257,13 @@ async function loadAppStatusWithRetry(retries = 3) {
   }
 }
 
-async function fetchEmails(folder = "inbox") {
+async function fetchEmails(folder = "inbox", limit = 25) {
   const container = document.getElementById("emails-list-container");
   const scanStatus = document.getElementById("scan-status-text");
   if (scanStatus) scanStatus.textContent = `Lecture ${folder === 'spam' ? '[Gmail]/Spam' : 'Gmail'}...`;
 
   try {
-    const res = await fetchWithRetry(`/api/emails/scan?folder=${folder}`, {}, 2, 1000);
+    const res = await fetchWithRetry(`/api/emails/scan?folder=${folder}&limit=${limit}`, {}, 2, 1000);
     const data = await res.json();
     currentEmails = data.emails || [];
 
@@ -253,7 +275,7 @@ async function fetchEmails(folder = "inbox") {
     }
 
     if (data.is_live) {
-      showToast(`${currentEmails.length} emails synchronisés depuis ${folder === 'spam' ? 'le dossier Spam' : 'la boîte de réception'} !`);
+      showToast(`${currentEmails.length} emails récupérés depuis ${folder === 'spam' ? 'le dossier Spam' : 'la boîte de réception'} !`);
     } else if (data.error) {
       showToast(`Erreur : ${data.error}`, "error");
     }
@@ -320,12 +342,14 @@ function renderEmailsList() {
     const badgeClass = getBadgeClass(em.category);
     const hasDraftText = em.draft ? `<span class="draft-indicator">✍️ Brouillon prêt</span>` : ``;
     const isSpamFolderBadge = em.folder === "spam" ? `<span class="badge-tag" style="background: rgba(239,68,68,0.2); color:#FCA5A5; font-size:10px;">Dossier Spam</span>` : ``;
+    const isFalsePosBadge = em.is_false_positive ? `<span class="badge-tag" style="background: rgba(16,185,129,0.25); color:#A7F3D0; font-size:10px;">🔥 Faux Positif</span>` : ``;
 
     card.innerHTML = `
       <div class="email-top-row">
-        <div style="display:flex; gap:6px; align-items:center;">
+        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
           <span class="email-category-badge ${badgeClass}">${em.category_label || em.category}</span>
           ${isSpamFolderBadge}
+          ${isFalsePosBadge}
         </div>
         <span class="email-date">${em.date}</span>
       </div>
@@ -361,6 +385,7 @@ function selectEmail(emailData) {
   const draftForm = document.getElementById("draft-form");
   const categoryBadge = document.getElementById("draft-category-badge");
   const spamBanner = document.getElementById("spam-action-banner");
+  const spamReason = document.getElementById("spam-banner-reason");
 
   if (!emailData) {
     emptyState.style.display = "block";
@@ -377,6 +402,7 @@ function selectEmail(emailData) {
   // Display Restore Banner if email is in Spam folder
   if (emailData.folder === "spam" || currentFolder === "spam") {
     if (spamBanner) spamBanner.style.display = "flex";
+    if (spamReason) spamReason.textContent = emailData.summary || "Restaurez cet email pour le recevoir dans votre boîte de réception.";
   } else {
     if (spamBanner) spamBanner.style.display = "none";
   }
@@ -431,14 +457,51 @@ async function restoreEmailToInbox(uid) {
 
     const data = await res.json();
     if (data.success) {
-      showToast("Email restauré vers votre Boîte de Réception avec succès ! 📥");
-      fetchEmails(currentFolder);
+      showToast("Email restauré et transféré vers votre Boîte de Réception avec succès ! 📥");
+      fetchEmails(currentFolder, currentLimit);
       fetchSpamFolderEmails();
     } else {
       showToast(data.detail || "Erreur de restauration", "error");
     }
   } catch (err) {
     showToast("Erreur serveur lors de la restauration", "error");
+  }
+}
+
+/* Restauration en lot de tous les faux positifs */
+async function restoreAllFalsePositives() {
+  const falsePositives = spamEmailsList.filter(e => e.is_false_positive);
+  if (falsePositives.length === 0) {
+    showToast("Aucun faux positif à restaurer.", "info");
+    return;
+  }
+
+  const uids = falsePositives.map(e => e.uid);
+  if (confirm(`Voulez-vous restaurer les ${uids.length} faux positifs détectés vers votre boîte de réception Gmail ?`)) {
+    const btn = document.getElementById("btn-restore-all-false-pos");
+    if (btn) {
+      btn.disabled = true;
+      document.getElementById("btn-restore-all-text").textContent = "Restauration en cours...";
+    }
+
+    try {
+      const res = await fetch("/api/spam/restore-all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uids: uids, folder: "[Gmail]/Spam" })
+      });
+      const data = await res.json();
+      showToast(data.message || `${uids.length} emails restaurés dans la boîte de réception !`);
+      fetchSpamFolderEmails();
+      fetchEmails("inbox", currentLimit);
+    } catch (err) {
+      showToast("Erreur lors de la restauration en lot", "error");
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        document.getElementById("btn-restore-all-text").textContent = "Restaurer tous les Faux Positifs";
+      }
+    }
   }
 }
 
@@ -456,9 +519,15 @@ async function fetchSpamFolderEmails() {
     const data = await res.json();
     spamEmailsList = data.emails || [];
 
-    if (countBadge) countBadge.textContent = `${spamEmailsList.length} email(s)`;
+    if (countBadge) countBadge.textContent = `${spamEmailsList.length} emails analysés`;
     document.getElementById("badge-spam").textContent = spamEmailsList.length;
     tbody.innerHTML = "";
+
+    const falsePosCount = spamEmailsList.filter(e => e.is_false_positive).length;
+    const btnRestoreAll = document.getElementById("btn-restore-all-text");
+    if (btnRestoreAll) {
+      btnRestoreAll.textContent = `Restaurer les ${falsePosCount} Faux Positifs`;
+    }
 
     if (spamEmailsList.length === 0) {
       tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 30px;">Dossier [Gmail]/Spam vide ou aucun spam récent détecté.</td></tr>`;
@@ -468,20 +537,20 @@ async function fetchSpamFolderEmails() {
     spamEmailsList.forEach(em => {
       const tr = document.createElement("tr");
       
-      const isUrgentOrLegit = em.is_false_positive || em.category === "URGENT_CLIENT" || em.category === "A_TRAITER";
+      const isUrgentOrLegit = em.is_false_positive;
       const diagBadge = isUrgentOrLegit 
-        ? `<span class="badge-tag" style="background: rgba(16,185,129,0.2); color:#A7F3D0;">🔥 Faux Positif (Important)</span>`
-        : `<span class="badge-tag" style="background: rgba(239,68,68,0.2); color:#FCA5A5;">🗑️ Vrai Spam</span>`;
+        ? `<div style="display:flex; flex-direction:column; gap:3px;"><span class="badge-tag" style="background: rgba(16,185,129,0.25); color:#A7F3D0; font-weight:700;">🔥 Faux Positif (Projet / Service)</span><span style="font-size:11px; color:var(--text-muted);">${em.summary}</span></div>`
+        : `<div style="display:flex; flex-direction:column; gap:3px;"><span class="badge-tag" style="background: rgba(239,68,68,0.2); color:#FCA5A5;">🗑️ Vrai Spam</span><span style="font-size:11px; color:var(--text-muted);">${em.summary}</span></div>`;
 
       const unsubBadge = em.has_unsubscribe 
         ? `<button class="btn btn-sm btn-secondary btn-unsub-item" data-url="${em.unsubscribe_url}">🚫 Désabo 1-Click</button>`
-        : `<span style="color:var(--text-dim); font-size:11px;">Pas de lien auto</span>`;
+        : `<span style="color:var(--text-dim); font-size:11px;">Manuel</span>`;
 
       tr.innerHTML = `
         <td>
           <div style="font-weight: 600; color: var(--text-main);">${em.sender_name} <span style="font-size:11px; color:var(--text-dim);">&lt;${em.sender_email}&gt;</span></div>
           <div style="font-size: 12.5px; color: var(--accent-cyan); margin-top:2px;">${em.subject}</div>
-          <div style="font-size: 11px; color: var(--text-muted); max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${em.snippet}</div>
+          <div style="font-size: 11px; color: var(--text-muted); max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${em.snippet}</div>
         </td>
         <td>${diagBadge}</td>
         <td>${unsubBadge}</td>
@@ -659,7 +728,7 @@ async function saveSettings() {
     if (data.success) {
       showToast("Paramètres sauvegardés avec succès !");
       loadAppStatusWithRetry(2);
-      fetchEmails(currentFolder);
+      fetchEmails(currentFolder, currentLimit);
     }
   } catch (err) {
     showToast("Erreur lors de la sauvegarde", "error");

@@ -882,8 +882,8 @@ input:checked + .slider:before {
   to { transform: translateX(0); opacity: 1; }
 }
 
-/* Folder Selector Pill */
-.folder-selector-pill {
+/* Folder & Depth Selector Pills */
+.folder-selector-pill, .depth-selector-pill {
   display: flex;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border-subtle);
@@ -892,24 +892,24 @@ input:checked + .slider:before {
   gap: 4px;
 }
 
-.folder-btn {
+.folder-btn, .depth-btn {
   background: transparent;
   border: none;
   color: var(--text-muted);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 6px 14px;
+  padding: 6px 13px;
   border-radius: var(--radius-full);
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 
-.folder-btn:hover {
+.folder-btn:hover, .depth-btn:hover {
   color: var(--text-main);
 }
 
-.folder-btn.active {
+.folder-btn.active, .depth-btn.active {
   background: var(--primary);
   color: white;
   box-shadow: 0 2px 8px var(--primary-glow);
