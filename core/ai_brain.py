@@ -120,18 +120,32 @@ Consignes de rédaction :
 
 Rédige UNIQUEMENT le texte de la réponse (aucun préambule ni commentaire)."""
 
-        return self._query_ai_engine(prompt)
+    def _is_ollama_alive(self) -> bool:
+        """Vérifie en 0.5s si le serveur Ollama est actif sans bloquer la boucle."""
+        import time
+        if hasattr(self, "_ollama_alive_cache"):
+            cached_val, cached_time = self._ollama_alive_cache
+            if time.time() - cached_time < 30:
+                return cached_val
+        try:
+            r = requests.get(f"{self.ollama_url}/api/version", timeout=0.6)
+            alive = (r.status_code == 200)
+        except Exception:
+            alive = False
+        import time
+        self._ollama_alive_cache = (alive, time.time())
+        return alive
 
     def _query_ai_engine(self, prompt: str) -> Optional[str]:
-        """Achemine la requête en priorité vers votre modèle local Ollama."""
-        # 1. Priorité : Modèle IA Local (Ollama)
-        if self.provider == "ollama" or not (self.gemini_key or self.openai_key or self.anthropic_key):
+        """Achemine la requête en priorité vers votre modèle local Ollama si actif."""
+        # 1. Priorité : Modèle IA Local (Ollama) si le serveur est en ligne
+        if (self.provider == "ollama" or not (self.gemini_key or self.openai_key or self.anthropic_key)) and self._is_ollama_alive():
             try:
                 model_name = self.model.replace("ollama/", "")
                 resp = requests.post(
                     f"{self.ollama_url}/api/generate",
                     json={"model": model_name, "prompt": prompt, "stream": False},
-                    timeout=15,
+                    timeout=5,
                 )
                 if resp.status_code == 200:
                     output = resp.json().get("response", "").strip()

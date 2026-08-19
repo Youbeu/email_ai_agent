@@ -141,13 +141,8 @@ def scan_emails():
         client = UniversalEmailClient(email_cfg, env_email=email_addr, env_password=email_pwd)
         client.connect()
         
-        # 1. Tenter d'abord les emails non lus des 7 derniers jours
-        emails_to_process = client.fetch_emails(unread_only=True, since_days=7, limit=30)
-        
-        # 2. Si aucun email non lu, récupérer les 20 derniers emails récents
-        if not emails_to_process:
-            emails_to_process = client.fetch_emails(unread_only=False, since_days=30, limit=20)
-
+        # Récupération instantanée des 10 emails les plus récents
+        emails_to_process = client.fetch_emails(unread_only=False, since_days=30, limit=10)
         client.disconnect()
         is_live = True
     except Exception as e:
