@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email AI Agent - Assistant Intelligent & Anti-Spam</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">📬</div>
+        <div class="brand-text">
+          <h2>Email AI Agent</h2>
+          <span>Antigravity Suite</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <div class="nav-section-title">AUTOMATISATIONS</div>
+        <button class="nav-item active" data-tab="tab-emails">
+          <span class="nav-icon">📨</span>
+          <span class="nav-label">Tri & Brouillons</span>
+          <span class="nav-badge" id="badge-drafts">2</span>
+        </button>
+        <button class="nav-item" data-tab="tab-spam">
+          <span class="nav-icon">🚫</span>
+          <span class="nav-label">Anti-Spam & Désabo</span>
+          <span class="nav-badge alert" id="badge-spam">4</span>
+        </button>
+        <button class="nav-item" data-tab="tab-journal">
+          <span class="nav-icon">📓</span>
+          <span class="nav-label">Carnet de Bord (P2)</span>
+          <span class="pill-soon">Bientôt</span>
+        </button>
+        <button class="nav-item" data-tab="tab-cleaner">
+          <span class="nav-icon">🧹</span>
+          <span class="nav-label">Ménage Fichiers (P3)</span>
+          <span class="pill-soon">Bientôt</span>
+        </button>
+        <button class="nav-item" data-tab="tab-watcher">
+          <span class="nav-icon">🌐</span>
+          <span class="nav-label">Veilleur IA (P4)</span>
+          <span class="pill-soon">Bientôt</span>
+        </button>
+        <button class="nav-item" data-tab="tab-brief">
+          <span class="nav-icon">🤝</span>
+          <span class="nav-label">Brief Réunion (P5)</span>
+          <span class="pill-soon">Bientôt</span>
+        </button>
+
+        <div class="nav-section-title" style="margin-top: 24px;">CONFIGURATION</div>
+        <button class="nav-item" data-tab="tab-settings">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-label">Paramètres & IA</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="ai-status-card">
+          <div class="ai-status-header">
+            <span class="status-indicator live" id="ai-status-dot"></span>
+            <span class="ai-name" id="ai-current-name">Gemini 2.5 Flash</span>
+          </div>
+          <div class="ai-mode-text" id="ai-mode-desc">100% Local / API Sécurisée</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top Bar -->
+      <header class="top-bar">
+        <div class="page-title">
+          <h1 id="page-title-text">Tri des Emails & Brouillons du Matin</h1>
+          <p id="page-subtitle-text">Analysez, classez et préparez vos réponses en un clic avant de démarrer la journée.</p>
+        </div>
+
+        <div class="top-actions">
+          <div class="mode-switch-wrapper">
+            <label class="switch-label">Mode Démo</label>
+            <label class="switch">
+              <input type="checkbox" id="toggle-demo" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
+          <button class="btn btn-primary" id="btn-scan">
+            <span class="btn-icon">⚡</span>
+            <span>Lancer le Scan</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- TAB 1: Emails & Brouillons -->
+      <section class="tab-content active" id="tab-emails">
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-icon blue">📨</div>
+            <div class="kpi-info">
+              <span class="kpi-label">Emails analysés</span>
+              <h3 class="kpi-value" id="kpi-total">5</h3>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon green">✍️</div>
+            <div class="kpi-info">
+              <span class="kpi-label">Brouillons rédigés</span>
+              <h3 class="kpi-value" id="kpi-drafts">2</h3>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon red">🔥</div>
+            <div class="kpi-info">
+              <span class="kpi-label">Urgents / Clients</span>
+              <h3 class="kpi-value" id="kpi-urgent">1</h3>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-icon purple">⏱️</div>
+            <div class="kpi-info">
+              <span class="kpi-label">Temps estimé gagné</span>
+              <h3 class="kpi-value" id="kpi-time">25 min</h3>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+          <div class="category-filters">
+            <button class="filter-chip active" data-filter="ALL">Tous (<span id="count-all">5</span>)</button>
+            <button class="filter-chip" data-filter="URGENT_CLIENT">🔥 Urgents (<span id="count-urgent">1</span>)</button>
+            <button class="filter-chip" data-filter="A_TRAITER">💼 À traiter (<span id="count-todo">1</span>)</button>
+            <button class="filter-chip" data-filter="FACTURE_COMPTA">🧾 Factures (<span id="count-invoice">1</span>)</button>
+            <button class="filter-chip" data-filter="NEWSLETTER">📰 Newsletters (<span id="count-newsletter">0</span>)</button>
+            <button class="filter-chip" data-filter="SPAM_PUB">🗑️ Spam (<span id="count-spam">1</span>)</button>
+          </div>
+        </div>
+
+        <!-- Split View: Emails List & Draft Viewer -->
+        <div class="split-layout">
+          <div class="emails-pane">
+            <div class="pane-header">
+              <h3>Boîte de réception analysée</h3>
+              <span class="pane-sub" id="scan-status-text">Prêt pour le scan</span>
+            </div>
+            <div class="emails-list" id="emails-list-container">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <div class="draft-pane">
+            <div class="pane-header">
+              <h3>✍️ Assistant Brouillon IA</h3>
+              <span class="badge-tag" id="draft-category-badge">Sélectionnez un email</span>
+            </div>
+
+            <div class="draft-editor-box" id="draft-editor-container">
+              <div class="empty-state" id="draft-empty-state">
+                <div class="empty-icon">📝</div>
+                <p>Cliquez sur un email dans la liste pour voir l'analyse et éditer le brouillon de réponse rédigé par l'IA.</p>
+              </div>
+
+              <div class="draft-form" id="draft-form" style="display: none;">
+                <div class="form-group">
+                  <label>Destinataire</label>
+                  <input type="text" id="draft-recipient" readonly class="input-readonly">
+                </div>
+                <div class="form-group">
+                  <label>Sujet de la réponse</label>
+                  <input type="text" id="draft-subject" class="input-text">
+                </div>
+                <div class="form-group">
+                  <div class="form-label-row">
+                    <label>Corps du message rédigé</label>
+                    <span class="hint-text">Modifiez librement avant synchronisation</span>
+                  </div>
+                  <textarea id="draft-body" rows="9" class="input-textarea"></textarea>
+                </div>
+                <div class="draft-actions">
+                  <button class="btn btn-secondary" id="btn-copy-draft">📋 Copier le texte</button>
+                  <button class="btn btn-success" id="btn-save-draft">
+                    <span>💾 Enregistrer dans mon dossier Brouillons</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: Anti-Spam & Désabonnement -->
+      <section class="tab-content" id="tab-spam">
+        <div class="section-intro">
+          <div class="intro-text">
+            <h2>Centre de Désabonnement & Nettoyage Anti-Spam</h2>
+            <p>Identifiez les newsletters encombrantes et les expéditeurs récurrents pour vous désabonner en 1 clic et vider la pollution.</p>
+          </div>
+          <button class="btn btn-primary" id="btn-audit-spam">
+            <span class="btn-icon">🔍</span>
+            <span>Auditer ma boîte de réception</span>
+          </button>
+        </div>
+
+        <div class="spam-table-card">
+          <table class="modern-table">
+            <thead>
+              <tr>
+                <th>Expéditeur</th>
+                <th>Volume Reçu</th>
+                <th>Exemples de sujets récents</th>
+                <th>Désabonnement 1-Click</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="spam-table-body">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB: Bientôt disponibles (P2 à P5) -->
+      <section class="tab-content" id="tab-journal">
+        <div class="placeholder-card">
+          <div class="card-icon">📓</div>
+          <h2>Projet 2 : Le Carnet de Bord Automatique du Soir</h2>
+          <p>Enregistrez un court message vocal ou écrivez 3 puces à 18h. L'IA extrait vos accomplissements clés, vos blocages et prépare votre to-do du lendemain dans un journal Markdown / Notion.</p>
+          <span class="badge-soon">Prochaine étape de notre feuille de route</span>
+        </div>
+      </section>
+
+      <section class="tab-content" id="tab-cleaner">
+        <div class="placeholder-card">
+          <div class="card-icon">🧹</div>
+          <h2>Projet 3 : Le Ménage intelligent du Vendredi</h2>
+          <p>Scan et classement automatique de votre dossier Téléchargements (Factures classées en compta, captures rangées, vieux installeurs suggérés à la suppression en toute sécurité avec Undo).</p>
+          <span class="badge-soon">Prochaine étape de notre feuille de route</span>
+        </div>
+      </section>
+
+      <section class="tab-content" id="tab-watcher">
+        <div class="placeholder-card">
+          <div class="card-icon">🌐</div>
+          <h2>Projet 4 : Le Veilleur Personnel Sectoriel</h2>
+          <p>Agrégateur de flux RSS et de sources ciblées avec synthèse automatique bi-hebdomadaire en 5 points clés avec liens sources.</p>
+          <span class="badge-soon">Prochaine étape de notre feuille de route</span>
+        </div>
+      </section>
+
+      <section class="tab-content" id="tab-brief">
+        <div class="placeholder-card">
+          <div class="card-icon">🤝</div>
+          <h2>Projet 5 : Le Brief Avant Réunion</h2>
+          <p>Fiche mémo contextuelle générée 15 minutes avant chaque rendez-vous avec historique des échanges et promesses actées.</p>
+          <span class="badge-soon">Prochaine étape de notre feuille de route</span>
+        </div>
+      </section>
+
+      <!-- TAB: Paramètres -->
+      <section class="tab-content" id="tab-settings">
+        <div class="settings-grid">
+          <div class="settings-card">
+            <h3>📬 Identifiants Email (IMAP/SMTP)</h3>
+            <p class="settings-desc">Vos identifiants restent 100% sécurisés et stockés uniquement sur votre machine locale.</p>
+            
+            <div class="form-group">
+              <label>Adresse Email</label>
+              <input type="email" id="set-email" placeholder="votre_adresse@gmail.com" class="input-text">
+            </div>
+            <div class="form-group">
+              <label>Mot de passe d'application</label>
+              <input type="password" id="set-password" placeholder="Mot de passe d'application (16 lettres)" class="input-text">
+              <span class="field-hint">Sur Gmail : Compte Google > Sécurité > Validation en 2 étapes > Mots de passe des applications</span>
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <h3>🧠 Moteur d'Intelligence Artificielle</h3>
+            <p class="settings-desc">Choisissez l'IA qui trie et rédige pour vous.</p>
+
+            <div class="form-group">
+              <label>Fournisseur d'IA</label>
+              <select id="set-ai-provider" class="input-select">
+                <option value="gemini">Google Gemini 2.5 Flash (Recommandé - Ultra rapide & Gratuit)</option>
+                <option value="ollama">Ollama Local (100% Hors-ligne - Llama3 / Mistral)</option>
+                <option value="openai">OpenAI (GPT-4o mini)</option>
+                <option value="claude">Anthropic Claude 3.5 Sonnet</option>
+                <option value="heuristic">Règles locales heuristiques (Sans clé API)</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="group-gemini-key">
+              <label>Clé API Google Gemini</label>
+              <input type="password" id="set-gemini-key" placeholder="AIzaSy..." class="input-text">
+              <span class="field-hint">Obtenez une clé gratuite sur <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a></span>
+            </div>
+
+            <div class="form-group">
+              <label>Ton des réponses rédigées</label>
+              <input type="text" id="set-tone" value="professionnel, bienveillant et concis" class="input-text">
+            </div>
+
+            <div class="form-group">
+              <label>Signature automatique</label>
+              <textarea id="set-signature" rows="2" class="input-textarea">Cordialement,&#10;[Votre Nom]</textarea>
+            </div>
+
+            <button class="btn btn-primary" id="btn-save-settings" style="width: 100%; margin-top: 16px;">
+              <span>💾 Enregistrer les paramètres</span>
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

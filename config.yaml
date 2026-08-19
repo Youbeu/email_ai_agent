@@ -1,0 +1,54 @@
+# Configuration Email AI Agent (Production & Sécurité Durcie)
+
+# Paramètres de connexion Email
+email:
+  provider: "gmail"  # "gmail", "outlook", "yahoo", ou "custom"
+  imap_server: "imap.gmail.com"
+  imap_port: 993
+  smtp_server: "smtp.gmail.com"
+  smtp_port: 465
+  drafts_folder: "[Gmail]/Brouillons"  # ou "Drafts" pour Outlook/IMAP
+  trash_folder: "[Gmail]/Corbeille"    # ou "Trash" / "Deleted Items"
+
+# Moteur d'Intelligence Artificielle (Par défaut : Modèle Local Ollama)
+ai:
+  provider: "ollama"  # "ollama" (100% Local hors-ligne), "gemini", "openai", "claude", "heuristic"
+  model: "qwen2.5-coder:7b"  # Modèle local (ou "llama3", "mistral", "qwen2.5:7b")
+  ollama_url: "http://localhost:11434"
+  tone: "professionnel, bienveillant, clair et concis"
+  language: "fr"
+  user_signature: "Cordialement,\n[Votre Nom]"
+
+# Règles de tri et catégories
+categories:
+  URGENT_CLIENT:
+    label: "🔥 Urgent / Client"
+    folder: "Urgent"
+    generate_draft: true
+    priority: 1
+  A_TRAITER:
+    label: "💼 À Traiter"
+    folder: "A_Traiter"
+    generate_draft: true
+    priority: 2
+  FACTURE_COMPTA:
+    label: "🧾 Facture / Compta"
+    folder: "Compta"
+    generate_draft: false
+    priority: 3
+  NEWSLETTER:
+    label: "📰 Newsletter"
+    folder: "Newsletters"
+    generate_draft: false
+    priority: 4
+  SPAM_PUB:
+    label: "🗑️ Spam / Pub"
+    folder: "Spam_AI"
+    generate_draft: false
+    priority: 5
+
+# Options du nettoyeur de spam
+spam_cleaner:
+  scan_limit: 150
+  min_emails_threshold: 2
+  auto_archive_spam: false
