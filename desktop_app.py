@@ -1,13 +1,36 @@
 """
 Lanceur d'application Desktop native pour Email AI Agent (via PyWebView et FastAPI).
-Gestion robuste du port et attente active de démarrage du serveur local.
+Gestion robuste du port, freeze_support et journalisation des erreurs.
 """
 import os
 import sys
+import multiprocessing
 import threading
 import time
 import socket
 import urllib.request
+import traceback
+
+# Multiprocessing freeze support pour Windows PyInstaller
+multiprocessing.freeze_support()
+
+# Gestion des chemins PyInstaller
+if getattr(sys, 'frozen', False):
+    APP_DIR = os.path.dirname(sys.executable)
+else:
+    APP_DIR = os.path.dirname(os.path.abspath(__file__))
+
+LOG_FILE = os.path.join(APP_DIR, "app_debug.log")
+
+
+def log(msg: str):
+    try:
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {msg}\n")
+    except Exception:
+        pass
+
+
 import uvicorn
 import webview
 
@@ -37,42 +60,56 @@ def wait_for_server(port: int, max_retries: int = 40, delay: float = 0.2) -> boo
 
 def start_api_server(port: int):
     """Démarre le serveur FastAPI en tâche de fond sur le port spécifié."""
-    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
-    server = uvicorn.Server(config)
-    server.run()
+    try:
+        log(f"Démarrage d'Uvicorn sur 127.0.0.1:{port}...")
+        config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
+        server = uvicorn.Server(config)
+        server.run()
+    except Exception as e:
+        log(f"Erreur Uvicorn : {e}\n{traceback.format_exc()}")
 
 
 def main():
     global PORT
-    # Si le port 8000 est déjà occupé, chercher un port libre (8001..8010)
-    if is_port_in_use(PORT):
-        # Vérifier si c'est déjà notre serveur qui répond
-        if not wait_for_server(PORT, max_retries=2, delay=0.1):
-            for test_port in range(8001, 8020):
-                if not is_port_in_use(test_port):
-                    PORT = test_port
-                    break
+    log("=== Lancement de Email AI Agent ===")
 
-    # Lancement du serveur API dans un thread séparé
-    server_thread = threading.Thread(target=start_api_server, args=(PORT,), daemon=True)
-    server_thread.start()
+    try:
+        # Si le port 8000 est déjà occupé, chercher un port libre (8001..8020)
+        if is_port_in_use(PORT):
+            if not wait_for_server(PORT, max_retries=2, delay=0.1):
+                for test_port in range(8001, 8020):
+                    if not is_port_in_use(test_port):
+                        PORT = test_port
+                        break
 
-    # Attente active que le serveur soit 100% opérationnel
-    wait_for_server(PORT, max_retries=50, delay=0.2)
+        log(f"Port sélectionné : {PORT}")
 
-    # Création de la fenêtre Desktop native Windows
-    window = webview.create_window(
-        title="📬 Email AI Agent - Assistant Intelligent & Anti-Spam",
-        url=f"http://127.0.0.1:{PORT}",
-        width=1280,
-        height=820,
-        min_size=(980, 650),
-        background_color="#0F172A",
-        text_select=True,
-    )
+        # Lancement du serveur API dans un thread séparé
+        server_thread = threading.Thread(target=start_api_server, args=(PORT,), daemon=True)
+        server_thread.start()
 
-    # Démarrage de la boucle GUI native
-    webview.start(debug=False)
+        # Attente active que le serveur soit 100% opérationnel
+        is_ready = wait_for_server(PORT, max_retries=50, delay=0.2)
+        log(f"Serveur API prêt : {is_ready}")
+
+        # Création de la fenêtre Desktop native Windows
+        log("Création de la fenêtre PyWebView...")
+        window = webview.create_window(
+            title="📬 Email AI Agent - Assistant Intelligent & Anti-Spam",
+            url=f"http://127.0.0.1:{PORT}",
+            width=1280,
+            height=820,
+            min_size=(980, 650),
+            background_color="#0F172A",
+            text_select=True,
+        )
+
+        # Démarrage de la boucle GUI native
+        log("Démarrage de la boucle GUI native webview...")
+        webview.start(debug=False)
+        log("Fermeture de l'application.")
+    except Exception as e:
+        log(f"FATAL ERROR dans main() : {e}\n{traceback.format_exc()}")
 
 
 if __name__ == "__main__":
