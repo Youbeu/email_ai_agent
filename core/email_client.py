@@ -326,15 +326,65 @@ class UniversalEmailClient:
 
         return '"Drafts"'
 
-    def move_to_trash(self, uid: str, dry_run: bool = False) -> bool:
+    def _find_spam_folder(self) -> str:
+        """Détecte le nom exact du dossier Spam sur le serveur IMAP."""
+        if not self.imap:
+            self.connect()
+
+        configured = self.config.get("spam_folder", "[Gmail]/Spam")
+        try:
+            status, _ = self.imap.select(f'"{configured}"', readonly=True)
+            if status == "OK":
+                return f'"{configured}"'
+        except Exception:
+            pass
+
+        status, folder_list = self.imap.list()
+        if status == "OK" and folder_list:
+            for item in folder_list:
+                item_str = item.decode("utf-8", errors="ignore")
+                for candidate in ["\\Junk", "Spam", "[Gmail]/Spam", "[Gmail]/Pourriel", "Junk Email", "Junk"]:
+                    if candidate.lower() in item_str.lower():
+                        parts = item_str.split(' "/" ')
+                        if len(parts) > 1:
+                            return parts[-1].strip()
+                        parts_space = item_str.split(' "')
+                        if len(parts_space) > 1:
+                            folder_name = parts_space[-1].rstrip('"')
+                            return f'"{folder_name}"'
+
+        return '"[Gmail]/Spam"'
+
+    def fetch_spam_emails(self, limit: int = 25) -> List[EmailMessageData]:
+        """Récupère les emails situés dans le dossier Spam."""
+        spam_folder = self._find_spam_folder().replace('"', '')
+        return self.fetch_emails(folder=spam_folder, unread_only=False, limit=limit)
+
+    def restore_to_inbox(self, uid: str, from_folder: Optional[str] = None) -> bool:
+        """Déplace un email du dossier Spam vers la boîte de réception (INBOX)."""
+        if not self.imap:
+            self.connect()
+
+        folder = from_folder or self._find_spam_folder()
+        try:
+            self.imap.select(folder)
+            copy_status, _ = self.imap.copy(uid, "INBOX")
+            if copy_status == "OK":
+                self.imap.store(uid, "+FLAGS", "\\Deleted")
+                self.imap.expunge()
+                return True
+        except Exception as e:
+            pass
+        return False
+
+    def move_to_trash(self, uid: str, from_folder: str = "INBOX", dry_run: bool = False) -> bool:
         """Déplace un email vers la corbeille ou le marque pour suppression."""
         if dry_run:
             return True
         if not self.imap:
             self.connect()
         try:
-            self.imap.select("INBOX")
-            # Tente d'abord de copier vers la corbeille
+            self.imap.select(from_folder)
             trash_folder = self.config.get("trash_folder", "[Gmail]/Corbeille")
             copy_status, _ = self.imap.copy(uid, trash_folder)
             if copy_status == "OK":
@@ -342,7 +392,6 @@ class UniversalEmailClient:
                 self.imap.expunge()
                 return True
             else:
-                # Marquer simplement comme supprimé
                 self.imap.store(uid, "+FLAGS", "\\Deleted")
                 self.imap.expunge()
                 return True

@@ -30,7 +30,7 @@
         </button>
         <button class="nav-item" data-tab="tab-spam">
           <span class="nav-icon">🚫</span>
-          <span class="nav-label">Anti-Spam & Désabo</span>
+          <span class="nav-label">Fouiller les Spams</span>
           <span class="nav-badge alert" id="badge-spam">0</span>
         </button>
         <button class="nav-item" data-tab="tab-journal">
@@ -77,18 +77,22 @@
       <!-- Top Bar -->
       <header class="top-bar">
         <div class="page-title">
-          <h1 id="page-title-text">Tri des Emails & Brouillons du Matin</h1>
+          <h1 id="page-title-text">Tri des Emails & Brouillons</h1>
           <p id="page-subtitle-text">Boîte Gmail connectée et synchronisée en direct.</p>
         </div>
 
         <div class="top-actions">
+          <div class="folder-selector-pill">
+            <button class="folder-btn active" id="btn-folder-inbox" data-folder="inbox">📥 Boîte Réception</button>
+            <button class="folder-btn" id="btn-folder-spam" data-folder="spam">🚫 Dossier Spam</button>
+          </div>
           <div class="mode-switch-wrapper">
             <span class="status-indicator live"></span>
             <span class="switch-label" id="account-display">Boîte Connectée</span>
           </div>
           <button class="btn btn-primary" id="btn-scan">
             <span class="btn-icon">⚡</span>
-            <span>Scanner ma boîte</span>
+            <span id="btn-scan-text">Scanner</span>
           </button>
         </div>
       </header>
@@ -114,7 +118,7 @@
           <div class="kpi-card">
             <div class="kpi-icon red">🔥</div>
             <div class="kpi-info">
-              <span class="kpi-label">Urgents / Clients</span>
+              <span class="kpi-label">Urgents / Faux Positifs</span>
               <h3 class="kpi-value" id="kpi-urgent">0</h3>
             </div>
           </div>
@@ -143,7 +147,7 @@
         <div class="split-layout">
           <div class="emails-pane">
             <div class="pane-header">
-              <h3>Boîte de réception Gmail</h3>
+              <h3 id="pane-folder-title">Boîte de réception Gmail</h3>
               <span class="pane-sub" id="scan-status-text">Synchronisation...</span>
             </div>
             <div class="emails-list" id="emails-list-container">
@@ -153,36 +157,47 @@
 
           <div class="draft-pane">
             <div class="pane-header">
-              <h3>✍️ Assistant Brouillon IA</h3>
+              <h3>✍️ Assistant & Actions</h3>
               <span class="badge-tag" id="draft-category-badge">Sélectionnez un email</span>
             </div>
 
             <div class="draft-editor-box" id="draft-editor-container">
               <div class="empty-state" id="draft-empty-state">
                 <div class="empty-icon">📝</div>
-                <p>Cliquez sur un email dans la liste pour voir l'analyse et éditer le brouillon de réponse rédigé par l'IA.</p>
+                <p>Cliquez sur un email dans la liste pour voir l'analyse, restaurer s'il est dans le spam, ou éditer la réponse rédigée par l'IA.</p>
               </div>
 
               <div class="draft-form" id="draft-form" style="display: none;">
+                <!-- Special Action Bar if email is in SPAM folder -->
+                <div id="spam-action-banner" class="spam-action-banner" style="display: none;">
+                  <div class="spam-banner-text">
+                    <strong>⚠️ Cet email est dans votre dossier Spam</strong>
+                    <span>Vous pouvez le renvoyer vers votre boîte de réception ou vous désabonner.</span>
+                  </div>
+                  <button class="btn btn-sm btn-success" id="btn-restore-to-inbox">
+                    <span>📥 Restaurer dans ma Boîte de Réception</span>
+                  </button>
+                </div>
+
                 <div class="form-group">
                   <label>Destinataire</label>
                   <input type="text" id="draft-recipient" readonly class="input-readonly">
                 </div>
                 <div class="form-group">
-                  <label>Sujet de la réponse</label>
+                  <label>Sujet</label>
                   <input type="text" id="draft-subject" class="input-text">
                 </div>
                 <div class="form-group">
                   <div class="form-label-row">
-                    <label>Corps du message rédigé</label>
+                    <label>Corps du message rédigé par l'IA</label>
                     <span class="hint-text">Modifiez librement avant synchronisation</span>
                   </div>
-                  <textarea id="draft-body" rows="9" class="input-textarea"></textarea>
+                  <textarea id="draft-body" rows="8" class="input-textarea"></textarea>
                 </div>
                 <div class="draft-actions">
                   <button class="btn btn-secondary" id="btn-copy-draft">📋 Copier le texte</button>
                   <button class="btn btn-success" id="btn-save-draft">
-                    <span>💾 Enregistrer dans mon dossier Brouillons Gmail</span>
+                    <span>💾 Enregistrer Brouillon Gmail</span>
                   </button>
                 </div>
               </div>
@@ -191,27 +206,36 @@
         </div>
       </section>
 
-      <!-- TAB 2: Anti-Spam & Désabonnement -->
+      <!-- TAB 2: Anti-Spam & Fouille Approfondie -->
       <section class="tab-content" id="tab-spam">
         <div class="section-intro">
           <div class="intro-text">
-            <h2>Centre de Désabonnement & Nettoyage Anti-Spam</h2>
-            <p>Identifiez les newsletters encombrantes et les expéditeurs récurrents pour vous désabonner en 1 clic et vider la pollution.</p>
+            <h2>Fouille Approfondie du Dossier Spam & Nettoyage</h2>
+            <p>Analysez tous les emails bloqués dans <code>[Gmail]/Spam</code>. Récupérez les faux positifs (factures, messages importants égarés) et désabonnez-vous en 1 clic.</p>
           </div>
-          <button class="btn btn-primary" id="btn-audit-spam">
-            <span class="btn-icon">🔍</span>
-            <span>Auditer ma boîte Gmail</span>
-          </button>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-primary" id="btn-scan-spam-deep">
+              <span class="btn-icon">🔍</span>
+              <span>Fouiller [Gmail]/Spam</span>
+            </button>
+            <button class="btn btn-secondary" id="btn-audit-senders">
+              <span class="btn-icon">📊</span>
+              <span>Auditer Expéditeurs</span>
+            </button>
+          </div>
         </div>
 
         <div class="spam-table-card">
+          <div class="table-header-bar">
+            <h3 id="spam-table-title">Emails Détectés dans [Gmail]/Spam</h3>
+            <span class="badge-tag" id="spam-table-count">0 email</span>
+          </div>
           <table class="modern-table">
             <thead>
               <tr>
-                <th>Expéditeur</th>
-                <th>Volume Reçu</th>
-                <th>Exemples de sujets récents</th>
-                <th>Désabonnement 1-Click</th>
+                <th>Expéditeur & Sujet</th>
+                <th>Diagnostic IA</th>
+                <th>Désabonnement</th>
                 <th>Actions</th>
               </tr>
             </thead>

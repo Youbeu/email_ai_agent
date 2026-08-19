@@ -1,11 +1,12 @@
 """
 Serveur API FastAPI pour l'application Desktop Email AI Agent.
-Connecté en direct à votre compte Email via .env sécurisé.
+Supporte le scan de la Boîte de Réception (INBOX) et du Dossier Spam ([Gmail]/Spam)
+avec Restauration vers la Boîte de Réception et Désabonnement 1-Click.
 """
 import os
 import sys
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -75,6 +76,11 @@ class SaveDraftRequest(BaseModel):
     body: str
 
 
+class RestoreSpamRequest(BaseModel):
+    uid: str
+    folder: Optional[str] = None
+
+
 class UnsubscribeRequest(BaseModel):
     url: Optional[str] = None
     one_click: bool = True
@@ -82,8 +88,9 @@ class UnsubscribeRequest(BaseModel):
 
 
 class DeleteSpamRequest(BaseModel):
-    sender_email: str
+    sender_email: Optional[str] = None
     uids: List[str]
+    folder: str = "INBOX"
 
 
 class SettingsUpdateRequest(BaseModel):
@@ -115,7 +122,7 @@ def get_status():
 
 
 @app.get("/api/emails/scan")
-def scan_emails():
+def scan_emails(folder: str = Query("inbox", description="Dossier à scanner : inbox ou spam")):
     config = get_config()
     ai_brain = AIBrain(config)
     unsubscriber = Unsubscriber()
@@ -141,8 +148,11 @@ def scan_emails():
         client = UniversalEmailClient(email_cfg, env_email=email_addr, env_password=email_pwd)
         client.connect()
         
-        # Récupération instantanée des 10 emails les plus récents
-        emails_to_process = client.fetch_emails(unread_only=False, since_days=30, limit=10)
+        if folder.lower() == "spam":
+            emails_to_process = client.fetch_spam_emails(limit=25)
+        else:
+            emails_to_process = client.fetch_emails(unread_only=False, since_days=30, limit=20)
+
         client.disconnect()
         is_live = True
     except Exception as e:
@@ -166,6 +176,12 @@ def scan_emails():
 
         unsub_info = unsubscriber.detect(em)
 
+        # Détection de faux positif si on est dans le dossier spam
+        is_false_positive = False
+        if folder.lower() == "spam":
+            if cat_key in ["URGENT_CLIENT", "A_TRAITER", "FACTURE_COMPTA"]:
+                is_false_positive = True
+
         results.append({
             "uid": em.uid,
             "category": cat_key,
@@ -180,15 +196,50 @@ def scan_emails():
             "has_unsubscribe": unsub_info.has_unsubscribe,
             "unsubscribe_url": unsub_info.primary_action_url,
             "spam_score": analysis.get("spam_score", 0.0),
+            "is_false_positive": is_false_positive,
+            "folder": folder.lower(),
         })
 
     return {
         "is_live": is_live,
         "email_address": email_addr,
+        "folder": folder.lower(),
         "total_scanned": len(results),
         "emails": results,
         "error": error_msg,
     }
+
+
+@app.get("/api/spam/scan")
+def scan_spam():
+    """Endpoint dédié à la fouille approfondie du dossier Spam."""
+    return scan_emails(folder="spam")
+
+
+@app.post("/api/spam/restore")
+def restore_spam_email(req: RestoreSpamRequest):
+    """Déplace un email du dossier Spam vers la boîte de réception principale."""
+    config = get_config()
+    email_addr = os.getenv("EMAIL_ADDRESS", "")
+    email_pwd = os.getenv("EMAIL_PASSWORD", "")
+
+    if not email_addr or not email_pwd:
+        raise HTTPException(status_code=400, detail="Identifiants non configurés")
+
+    try:
+        client = UniversalEmailClient(config.get("email", {}), env_email=email_addr, env_password=email_pwd)
+        client.connect()
+        success = client.restore_to_inbox(req.uid, from_folder=req.folder)
+        client.disconnect()
+
+        if success:
+            return {
+                "success": True,
+                "message": "Email restauré et transféré vers votre Boîte de Réception avec succès !",
+            }
+        raise HTTPException(status_code=500, detail="Impossible de déplacer l'email vers la boîte de réception")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/drafts/save")
@@ -278,11 +329,12 @@ def delete_spam_sender(req: DeleteSpamRequest):
         client = UniversalEmailClient(config.get("email", {}), env_email=email_addr, env_password=email_pwd)
         client.connect()
         deleted = 0
+        target_folder = "[Gmail]/Spam" if req.folder == "spam" else "INBOX"
         for uid in req.uids:
-            if client.move_to_trash(uid, dry_run=False):
+            if client.move_to_trash(uid, from_folder=target_folder, dry_run=False):
                 deleted += 1
         client.disconnect()
-        return {"success": True, "deleted_count": deleted, "message": f"{deleted} emails déplacés vers la corbeille"}
+        return {"success": True, "deleted_count": deleted, "message": f"{deleted} emails supprimés avec succès"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
