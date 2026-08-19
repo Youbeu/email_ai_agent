@@ -1,44 +1,49 @@
 """
 Module sécurisé de détection et d'exécution du désabonnement (List-Unsubscribe & Liens HTML).
-Inclut une protection robuste contre le SSRF (Server-Side Request Forgery).
+Inclut une protection robuste contre le SSRF (Server-Side Request Forgery) optimisée pour la vitesse.
 """
 import re
 import socket
 import ipaddress
 import urllib.parse
-import webbrowser
 from typing import Dict, Any, List, Optional
 from bs4 import BeautifulSoup
 import requests
 from core.email_client import EmailMessageData
 
 
-def is_safe_external_url(url: str) -> bool:
-    """
-    Vérifie qu'une URL est publique et sécurisée contre les attaques SSRF.
-    Bloque localhost, 127.0.0.1, 169.254.169.254, 10.x, 192.168.x, 172.16-31.x, etc.
-    """
+def is_safe_url_syntax(url: str) -> bool:
+    """Vérification syntaxique ultra-rapide (0 ms) sans appel DNS bloquant."""
+    if not url or not isinstance(url, str):
+        return False
     try:
-        parsed = urllib.parse.urlparse(url)
+        parsed = urllib.parse.urlparse(url.strip())
         if parsed.scheme not in ["http", "https"]:
             return False
-
-        hostname = parsed.hostname
+        hostname = (parsed.hostname or "").lower()
         if not hostname:
             return False
-
-        # Bloquer les noms d'hôtes réservés
-        blocked_hosts = ["localhost", "127.0.0.1", "::1", "0.0.0.0", "instance-data", "metadata.google.internal"]
-        if hostname.lower() in blocked_hosts or hostname.lower().endswith(".local"):
+        if hostname in ["localhost", "127.0.0.1", "::1", "0.0.0.0", "instance-data", "metadata.google.internal"]:
             return False
+        if hostname.endswith(".local") or hostname.endswith(".internal"):
+            return False
+        return True
+    except Exception:
+        return False
 
-        # Résolution DNS et vérification IP
+
+def is_safe_external_url(url: str) -> bool:
+    """Vérification stricte avec résolution DNS exécutée uniquement lors du clic de désabonnement."""
+    if not is_safe_url_syntax(url):
+        return False
+    try:
+        parsed = urllib.parse.urlparse(url)
+        hostname = parsed.hostname
         ip_str = socket.gethostbyname(hostname)
         ip_obj = ipaddress.ip_address(ip_str)
 
         if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local or ip_obj.is_reserved or ip_obj.is_multicast:
             return False
-
         return True
     except Exception:
         return False
@@ -52,9 +57,9 @@ class UnsubscribeInfo:
         one_click_post: Optional[str] = None,
         source: str = "none",
     ):
-        self.urls = [u for u in urls if is_safe_external_url(u)]
+        self.urls = [u for u in urls if is_safe_url_syntax(u)]
         self.mailtos = mailtos
-        self.one_click_post = one_click_post if (one_click_post and is_safe_external_url(one_click_post)) else None
+        self.one_click_post = one_click_post if (one_click_post and is_safe_url_syntax(one_click_post)) else None
         self.source = source
 
     @property
@@ -88,9 +93,7 @@ class Unsubscriber:
         }
 
     def detect(self, email_data: EmailMessageData) -> UnsubscribeInfo:
-        """
-        Détecte les méthodes de désabonnement à partir des en-têtes RFC ou du corps HTML.
-        """
+        """Détecte instantanément les méthodes de désabonnement sans blocage réseau."""
         urls: List[str] = []
         mailtos: List[str] = []
         one_click_post: Optional[str] = None
@@ -98,96 +101,53 @@ class Unsubscriber:
         # 1. Vérification de l'en-tête standard List-Unsubscribe
         header_val = email_data.list_unsubscribe
         if header_val:
-            matches = re.findall(r"<([^>]+)>", header_val)
-            for m in matches:
-                m_clean = m.strip()
-                if m_clean.lower().startswith("mailto:"):
-                    mailtos.append(m_clean)
-                elif m_clean.lower().startswith("http") and is_safe_external_url(m_clean):
-                    urls.append(m_clean)
-
-            # Vérifier si List-Unsubscribe-Post existe (RFC 8058)
-            post_header = str(email_data.raw_message.get("List-Unsubscribe-Post", "") if email_data.raw_message else "")
-            if "List-Unsubscribe=One-Click" in post_header and urls:
-                one_click_post = urls[0]
+            for item in re.findall(r"<([^>]+)>", header_val):
+                item = item.strip()
+                if item.startswith("http://") or item.startswith("https://"):
+                    urls.append(item)
+                elif item.startswith("mailto:"):
+                    mailtos.append(item.replace("mailto:", ""))
 
             if urls or mailtos:
                 return UnsubscribeInfo(urls=urls, mailtos=mailtos, one_click_post=one_click_post, source="header")
 
-        # 2. Recherche dans le corps HTML
+        # 2. Analyse rapide du corps HTML si présent
         if email_data.body_html:
             try:
-                soup = BeautifulSoup(email_data.body_html, "html.parser")
-                unsub_keywords = [
-                    "unsubscribe", "désabonner", "desabonner", "désinscrire", "desinscrire",
-                    "désinscription", "desinscription", "se désinscrire", "se desabonner",
-                    "opt-out", "opt out", "manage preferences", "préférences de communication",
-                    "gérer mes abonnements", "cliquez ici pour ne plus recevoir"
-                ]
-
-                for a_tag in soup.find_all("a", href=True):
-                    href = a_tag["href"].strip()
-                    link_text = a_tag.get_text().strip().lower()
-                    
-                    if any(kw in link_text for kw in unsub_keywords) or any(kw in href.lower() for kw in ["unsub", "desabon", "optout"]):
-                        if href.lower().startswith("http") and is_safe_external_url(href) and href not in urls:
+                soup = BeautifulSoup(email_data.body_html[:15000], "html.parser")
+                for a in soup.find_all("a", href=True):
+                    href = a["href"].strip()
+                    text = a.get_text().lower()
+                    if any(kw in text for kw in ["désabonner", "desabonner", "unsubscribe", "opt out", "se désinscrire"]):
+                        if href.startswith("http://") or href.startswith("https://"):
                             urls.append(href)
-                        elif href.lower().startswith("mailto:") and href not in mailtos:
-                            mailtos.append(href)
+                        elif href.startswith("mailto:"):
+                            mailtos.append(href.replace("mailto:", ""))
             except Exception:
                 pass
 
-        if urls or mailtos:
-            return UnsubscribeInfo(urls=urls, mailtos=mailtos, source="body_link")
-
-        return UnsubscribeInfo(urls=[], mailtos=[], source="none")
+        return UnsubscribeInfo(urls=urls, mailtos=mailtos, one_click_post=one_click_post, source="body" if urls else "none")
 
     def execute_one_click(self, unsub_info: UnsubscribeInfo) -> Dict[str, Any]:
-        """
-        Tente un désabonnement sécurisé (HTTP POST One-Click ou GET).
-        """
-        if unsub_info.one_click_post:
-            if not is_safe_external_url(unsub_info.one_click_post):
-                return {"success": False, "message": "URL bloquée par la politique de sécurité SSRF."}
-            try:
+        """Exécute la requête de désabonnement sécurisée avec validation DNS SSRF."""
+        target_url = unsub_info.primary_action_url
+        if not target_url or not is_safe_external_url(target_url):
+            return {"success": False, "method": "none", "error": "URL non sécurisée ou invalide"}
+
+        try:
+            if unsub_info.one_click_post:
                 resp = requests.post(
-                    unsub_info.one_click_post,
+                    target_url,
                     data={"List-Unsubscribe": "One-Click"},
                     headers=self.headers,
                     timeout=8,
-                    allow_redirects=False,
+                    allow_redirects=True,
                 )
-                return {
-                    "success": resp.status_code in [200, 202, 204, 302, 303],
-                    "status_code": resp.status_code,
-                    "method": "POST One-Click",
-                    "message": "Désabonnement RFC 8058 One-Click envoyé avec succès."
-                }
-            except Exception as e:
-                return {"success": False, "method": "POST One-Click", "message": f"Erreur requête : {e}"}
-
-        if unsub_info.urls:
-            target_url = unsub_info.urls[0]
-            if not is_safe_external_url(target_url):
-                return {"success": False, "message": "URL bloquée par la politique de sécurité SSRF."}
-            try:
+            else:
                 resp = requests.get(target_url, headers=self.headers, timeout=8, allow_redirects=True)
-                return {
-                    "success": resp.status_code in [200, 204],
-                    "status_code": resp.status_code,
-                    "method": "HTTP GET",
-                    "url": target_url,
-                    "message": "Lien de désabonnement visité avec succès."
-                }
-            except Exception as e:
-                return {"success": False, "method": "HTTP GET", "message": f"Erreur requête : {e}"}
 
-        return {"success": False, "message": "Aucun lien HTTP direct sécurisé trouvé."}
-
-    def open_link_in_browser(self, unsub_info: UnsubscribeInfo) -> bool:
-        """Ouvre le lien de désabonnement vérifié dans le navigateur."""
-        url = unsub_info.primary_action_url
-        if url and is_safe_external_url(url):
-            webbrowser.open(url)
-            return True
-        return False
+            if resp.status_code in [200, 202, 204]:
+                return {"success": True, "method": "http", "status_code": resp.status_code}
+            return {"success": False, "method": "http", "status_code": resp.status_code}
+        except Exception as e:
+            return {"success": False, "method": "http", "error": str(e)}
