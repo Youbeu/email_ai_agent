@@ -1,5 +1,5 @@
 /* =========================================================
-   EMAIL AI AGENT - FRONTEND CONTROLLER (INBOX + SPAM FOLDER)
+   EMAIL AI AGENT - FRONTEND CONTROLLER (ROBUST & RESILIENT)
    ========================================================= */
 
 let currentFolder = "inbox";
@@ -7,19 +7,20 @@ let currentEmails = [];
 let selectedEmail = null;
 let currentFilter = "ALL";
 let spamEmailsList = [];
+let hasLoadedSpam = false;
 
 document.addEventListener("DOMContentLoaded", () => {
   initTabs();
   initFolderSelector();
   initEventListeners();
-  loadAppStatus();
+  loadAppStatusWithRetry(3);
   fetchEmails(currentFolder);
-  fetchSpamFolderEmails();
 });
 
 /* Toast Notification Utility */
 function showToast(message, type = "success") {
   const container = document.getElementById("toast-container");
+  if (!container) return;
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
   
@@ -33,6 +34,20 @@ function showToast(message, type = "success") {
     toast.style.transition = "all 0.3s ease";
     setTimeout(() => toast.remove(), 300);
   }, 3500);
+}
+
+/* Helper Fetch avec Retry */
+async function fetchWithRetry(url, options = {}, retries = 3, delay = 1000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(url, options);
+      if (res.ok) return res;
+    } catch (err) {
+      if (i === retries - 1) throw err;
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  throw new Error("Impossible de joindre le serveur local.");
 }
 
 /* Folder Selector */
@@ -96,6 +111,12 @@ function initTabs() {
       if (target) target.classList.add("active");
 
       updatePageTitle(tabId);
+
+      // Charger le dossier Spam au premier clic sur l'onglet
+      if (tabId === "tab-spam" && !hasLoadedSpam) {
+        hasLoadedSpam = true;
+        fetchSpamFolderEmails();
+      }
     });
   });
 }
@@ -193,9 +214,9 @@ function initEventListeners() {
 }
 
 /* API Calls */
-async function loadAppStatus() {
+async function loadAppStatusWithRetry(retries = 3) {
   try {
-    const res = await fetch("/api/status");
+    const res = await fetchWithRetry("/api/status", {}, retries, 800);
     const data = await res.json();
 
     const nameEl = document.getElementById("ai-current-name");
@@ -210,7 +231,7 @@ async function loadAppStatus() {
       nameEl.textContent = `Ollama (${data.ai_model || 'Local'})`;
     }
   } catch (err) {
-    console.error("Erreur chargement statut:", err);
+    console.warn("Statut non récupéré immédiatement, en attente:", err);
   }
 }
 
@@ -220,7 +241,7 @@ async function fetchEmails(folder = "inbox") {
   if (scanStatus) scanStatus.textContent = `Lecture ${folder === 'spam' ? '[Gmail]/Spam' : 'Gmail'}...`;
 
   try {
-    const res = await fetch(`/api/emails/scan?folder=${folder}`);
+    const res = await fetchWithRetry(`/api/emails/scan?folder=${folder}`, {}, 2, 1000);
     const data = await res.json();
     currentEmails = data.emails || [];
 
@@ -241,7 +262,9 @@ async function fetchEmails(folder = "inbox") {
       selectEmail(currentEmails[0]);
     }
   } catch (err) {
-    showToast("Erreur de connexion au serveur local", "error");
+    console.error(err);
+    if (scanStatus) scanStatus.textContent = "Erreur serveur";
+    showToast("Connexion au serveur local en cours...", "info");
   } finally {
     const btnScan = document.getElementById("btn-scan");
     if (btnScan) btnScan.classList.remove("loading");
@@ -429,7 +452,7 @@ async function fetchSpamFolderEmails() {
   if (!tbody) return;
 
   try {
-    const res = await fetch("/api/spam/scan");
+    const res = await fetchWithRetry("/api/spam/scan", {}, 2, 1000);
     const data = await res.json();
     spamEmailsList = data.emails || [];
 
@@ -549,7 +572,7 @@ async function fetchSpamAudit() {
   if (!tbody) return;
 
   try {
-    const res = await fetch("/api/spam/audit");
+    const res = await fetchWithRetry("/api/spam/audit", {}, 2, 1000);
     const data = await res.json();
     const senders = data.senders || [];
 
@@ -635,7 +658,7 @@ async function saveSettings() {
     const data = await res.json();
     if (data.success) {
       showToast("Paramètres sauvegardés avec succès !");
-      loadAppStatus();
+      loadAppStatusWithRetry(2);
       fetchEmails(currentFolder);
     }
   } catch (err) {
