@@ -168,32 +168,33 @@ class UniversalEmailClient:
         self,
         folder: str = "INBOX",
         unread_only: bool = True,
-        since_days: int = 1,
-        limit: int = 50,
+        since_days: int = 7,
+        limit: int = 15,
     ) -> List[EmailMessageData]:
-        """Récupère les emails correspondant aux critères."""
+        """Récupère les emails correspondant aux critères de manière ultra-rapide."""
         if not self.imap:
             self.connect()
 
-        self.imap.select(folder)
+        self.imap.select(folder, readonly=True)
 
-        # Construction du critère de recherche IMAP
-        criteria = []
+        # Recherche optimisée
+        data = None
         if unread_only:
-            criteria.append("UNSEEN")
+            try:
+                status, data = self.imap.search(None, "UNSEEN")
+            except Exception:
+                status = "ERROR"
+        
+        if not unread_only or not data or not data[0]:
+            try:
+                status, data = self.imap.search(None, "ALL")
+            except Exception:
+                return []
 
-        if since_days > 0:
-            since_date = (datetime.now() - timedelta(days=since_days)).strftime("%d-%b-%Y")
-            criteria.append(f'(SINCE "{since_date}")')
-
-        search_query = " ".join(criteria) if criteria else "ALL"
-        status, data = self.imap.search(None, search_query)
-
-        if status != "OK" or not data or not data[0]:
+        if not data or not data[0]:
             return []
 
         message_numbers = data[0].split()
-        # Prendre les plus récents (derniers)
         selected_numbers = message_numbers[-limit:]
         messages: List[EmailMessageData] = []
 

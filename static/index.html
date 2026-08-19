@@ -26,12 +26,12 @@
         <button class="nav-item active" data-tab="tab-emails">
           <span class="nav-icon">📨</span>
           <span class="nav-label">Tri & Brouillons</span>
-          <span class="nav-badge" id="badge-drafts">2</span>
+          <span class="nav-badge" id="badge-drafts">0</span>
         </button>
         <button class="nav-item" data-tab="tab-spam">
           <span class="nav-icon">🚫</span>
           <span class="nav-label">Anti-Spam & Désabo</span>
-          <span class="nav-badge alert" id="badge-spam">4</span>
+          <span class="nav-badge alert" id="badge-spam">0</span>
         </button>
         <button class="nav-item" data-tab="tab-journal">
           <span class="nav-icon">📓</span>
@@ -65,9 +65,9 @@
         <div class="ai-status-card">
           <div class="ai-status-header">
             <span class="status-indicator live" id="ai-status-dot"></span>
-            <span class="ai-name" id="ai-current-name">Gemini 2.5 Flash</span>
+            <span class="ai-name" id="ai-current-name">Ollama (Qwen 2.5)</span>
           </div>
-          <div class="ai-mode-text" id="ai-mode-desc">100% Local / API Sécurisée</div>
+          <div class="ai-mode-text" id="ai-mode-desc">100% Local / Hors-Ligne</div>
         </div>
       </div>
     </aside>
@@ -78,20 +78,17 @@
       <header class="top-bar">
         <div class="page-title">
           <h1 id="page-title-text">Tri des Emails & Brouillons du Matin</h1>
-          <p id="page-subtitle-text">Analysez, classez et préparez vos réponses en un clic avant de démarrer la journée.</p>
+          <p id="page-subtitle-text">Boîte Gmail connectée et synchronisée en direct.</p>
         </div>
 
         <div class="top-actions">
           <div class="mode-switch-wrapper">
-            <label class="switch-label">Mode Démo</label>
-            <label class="switch">
-              <input type="checkbox" id="toggle-demo" checked>
-              <span class="slider round"></span>
-            </label>
+            <span class="status-indicator live"></span>
+            <span class="switch-label" id="account-display">Boîte Connectée</span>
           </div>
           <button class="btn btn-primary" id="btn-scan">
             <span class="btn-icon">⚡</span>
-            <span>Lancer le Scan</span>
+            <span>Scanner ma boîte</span>
           </button>
         </div>
       </header>
@@ -104,28 +101,28 @@
             <div class="kpi-icon blue">📨</div>
             <div class="kpi-info">
               <span class="kpi-label">Emails analysés</span>
-              <h3 class="kpi-value" id="kpi-total">5</h3>
+              <h3 class="kpi-value" id="kpi-total">0</h3>
             </div>
           </div>
           <div class="kpi-card">
             <div class="kpi-icon green">✍️</div>
             <div class="kpi-info">
               <span class="kpi-label">Brouillons rédigés</span>
-              <h3 class="kpi-value" id="kpi-drafts">2</h3>
+              <h3 class="kpi-value" id="kpi-drafts">0</h3>
             </div>
           </div>
           <div class="kpi-card">
             <div class="kpi-icon red">🔥</div>
             <div class="kpi-info">
               <span class="kpi-label">Urgents / Clients</span>
-              <h3 class="kpi-value" id="kpi-urgent">1</h3>
+              <h3 class="kpi-value" id="kpi-urgent">0</h3>
             </div>
           </div>
           <div class="kpi-card">
             <div class="kpi-icon purple">⏱️</div>
             <div class="kpi-info">
               <span class="kpi-label">Temps estimé gagné</span>
-              <h3 class="kpi-value" id="kpi-time">25 min</h3>
+              <h3 class="kpi-value" id="kpi-time">0 min</h3>
             </div>
           </div>
         </div>
@@ -133,12 +130,12 @@
         <!-- Filter Bar -->
         <div class="filter-bar">
           <div class="category-filters">
-            <button class="filter-chip active" data-filter="ALL">Tous (<span id="count-all">5</span>)</button>
-            <button class="filter-chip" data-filter="URGENT_CLIENT">🔥 Urgents (<span id="count-urgent">1</span>)</button>
-            <button class="filter-chip" data-filter="A_TRAITER">💼 À traiter (<span id="count-todo">1</span>)</button>
-            <button class="filter-chip" data-filter="FACTURE_COMPTA">🧾 Factures (<span id="count-invoice">1</span>)</button>
+            <button class="filter-chip active" data-filter="ALL">Tous (<span id="count-all">0</span>)</button>
+            <button class="filter-chip" data-filter="URGENT_CLIENT">🔥 Urgents (<span id="count-urgent">0</span>)</button>
+            <button class="filter-chip" data-filter="A_TRAITER">💼 À traiter (<span id="count-todo">0</span>)</button>
+            <button class="filter-chip" data-filter="FACTURE_COMPTA">🧾 Factures (<span id="count-invoice">0</span>)</button>
             <button class="filter-chip" data-filter="NEWSLETTER">📰 Newsletters (<span id="count-newsletter">0</span>)</button>
-            <button class="filter-chip" data-filter="SPAM_PUB">🗑️ Spam (<span id="count-spam">1</span>)</button>
+            <button class="filter-chip" data-filter="SPAM_PUB">🗑️ Spam (<span id="count-spam">0</span>)</button>
           </div>
         </div>
 
@@ -146,8 +143,8 @@
         <div class="split-layout">
           <div class="emails-pane">
             <div class="pane-header">
-              <h3>Boîte de réception analysée</h3>
-              <span class="pane-sub" id="scan-status-text">Prêt pour le scan</span>
+              <h3>Boîte de réception Gmail</h3>
+              <span class="pane-sub" id="scan-status-text">Synchronisation...</span>
             </div>
             <div class="emails-list" id="emails-list-container">
               <!-- Dynamically populated -->
@@ -185,7 +182,7 @@
                 <div class="draft-actions">
                   <button class="btn btn-secondary" id="btn-copy-draft">📋 Copier le texte</button>
                   <button class="btn btn-success" id="btn-save-draft">
-                    <span>💾 Enregistrer dans mon dossier Brouillons</span>
+                    <span>💾 Enregistrer dans mon dossier Brouillons Gmail</span>
                   </button>
                 </div>
               </div>
@@ -203,7 +200,7 @@
           </div>
           <button class="btn btn-primary" id="btn-audit-spam">
             <span class="btn-icon">🔍</span>
-            <span>Auditer ma boîte de réception</span>
+            <span>Auditer ma boîte Gmail</span>
           </button>
         </div>
 
@@ -231,7 +228,7 @@
           <div class="card-icon">📓</div>
           <h2>Projet 2 : Le Carnet de Bord Automatique du Soir</h2>
           <p>Enregistrez un court message vocal ou écrivez 3 puces à 18h. L'IA extrait vos accomplissements clés, vos blocages et prépare votre to-do du lendemain dans un journal Markdown / Notion.</p>
-          <span class="badge-soon">Prochaine étape de notre feuille de route</span>
+          <span class="badge-soon">Prochaine étape</span>
         </div>
       </section>
 
@@ -240,7 +237,7 @@
           <div class="card-icon">🧹</div>
           <h2>Projet 3 : Le Ménage intelligent du Vendredi</h2>
           <p>Scan et classement automatique de votre dossier Téléchargements (Factures classées en compta, captures rangées, vieux installeurs suggérés à la suppression en toute sécurité avec Undo).</p>
-          <span class="badge-soon">Prochaine étape de notre feuille de route</span>
+          <span class="badge-soon">Prochaine étape</span>
         </div>
       </section>
 
@@ -249,7 +246,7 @@
           <div class="card-icon">🌐</div>
           <h2>Projet 4 : Le Veilleur Personnel Sectoriel</h2>
           <p>Agrégateur de flux RSS et de sources ciblées avec synthèse automatique bi-hebdomadaire en 5 points clés avec liens sources.</p>
-          <span class="badge-soon">Prochaine étape de notre feuille de route</span>
+          <span class="badge-soon">Prochaine étape</span>
         </div>
       </section>
 
@@ -258,7 +255,7 @@
           <div class="card-icon">🤝</div>
           <h2>Projet 5 : Le Brief Avant Réunion</h2>
           <p>Fiche mémo contextuelle générée 15 minutes avant chaque rendez-vous avec historique des échanges et promesses actées.</p>
-          <span class="badge-soon">Prochaine étape de notre feuille de route</span>
+          <span class="badge-soon">Prochaine étape</span>
         </div>
       </section>
 
@@ -276,7 +273,7 @@
             <div class="form-group">
               <label>Mot de passe d'application</label>
               <input type="password" id="set-password" placeholder="Mot de passe d'application (16 lettres)" class="input-text">
-              <span class="field-hint">Sur Gmail : Compte Google > Sécurité > Validation en 2 étapes > Mots de passe des applications</span>
+              <span class="field-hint">Mot de passe d'application Gmail 16 lettres</span>
             </div>
           </div>
 
@@ -287,18 +284,17 @@
             <div class="form-group">
               <label>Fournisseur d'IA</label>
               <select id="set-ai-provider" class="input-select">
-                <option value="gemini">Google Gemini 2.5 Flash (Recommandé - Ultra rapide & Gratuit)</option>
-                <option value="ollama">Ollama Local (100% Hors-ligne - Llama3 / Mistral)</option>
+                <option value="ollama" selected>Ollama Local (100% Hors-ligne - Qwen 2.5 / Llama3)</option>
+                <option value="gemini">Google Gemini 2.5 Flash (Gratuit & Ultra rapide)</option>
+                <option value="heuristic">Règles locales heuristiques (Sans clé API)</option>
                 <option value="openai">OpenAI (GPT-4o mini)</option>
                 <option value="claude">Anthropic Claude 3.5 Sonnet</option>
-                <option value="heuristic">Règles locales heuristiques (Sans clé API)</option>
               </select>
             </div>
 
             <div class="form-group" id="group-gemini-key">
-              <label>Clé API Google Gemini</label>
+              <label>Clé API Google Gemini (optionnel)</label>
               <input type="password" id="set-gemini-key" placeholder="AIzaSy..." class="input-text">
-              <span class="field-hint">Obtenez une clé gratuite sur <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a></span>
             </div>
 
             <div class="form-group">

@@ -1,11 +1,10 @@
 /* =========================================================
-   EMAIL AI AGENT - FRONTEND CONTROLLER (VANILLA JS)
+   EMAIL AI AGENT - FRONTEND CONTROLLER (100% GMAIL DIRECT)
    ========================================================= */
 
 let currentEmails = [];
 let selectedEmail = null;
 let currentFilter = "ALL";
-let isDemoMode = true;
 
 document.addEventListener("DOMContentLoaded", () => {
   initTabs();
@@ -49,7 +48,6 @@ function initTabs() {
       const target = document.getElementById(tabId);
       if (target) target.classList.add("active");
 
-      // Titres dynamiques selon l'onglet
       updatePageTitle(tabId);
     });
   });
@@ -61,7 +59,7 @@ function updatePageTitle(tabId) {
 
   if (tabId === "tab-emails") {
     titleEl.textContent = "Tri des Emails & Brouillons du Matin";
-    subEl.textContent = "Analysez, classez et préparez vos réponses en un clic avant de démarrer la journée.";
+    subEl.textContent = "Boîte Gmail connectée et synchronisée en direct.";
   } else if (tabId === "tab-spam") {
     titleEl.textContent = "Nettoyeur Anti-Spam & Désabonnement";
     subEl.textContent = "Désabonnez-vous des newsletters encombrantes et nettoyez votre boîte en 1 clic.";
@@ -73,22 +71,12 @@ function updatePageTitle(tabId) {
 
 /* Event Listeners */
 function initEventListeners() {
-  // Toggle Demo Switch
-  const toggleDemo = document.getElementById("toggle-demo");
-  if (toggleDemo) {
-    toggleDemo.addEventListener("change", (e) => {
-      isDemoMode = e.target.checked;
-      showToast(`Basculé en ${isDemoMode ? "Mode Démo" : "Mode Réel (Connecté)"}`, "info");
-      fetchEmails();
-      fetchSpamAudit();
-    });
-  }
-
   // Scan Button
   const btnScan = document.getElementById("btn-scan");
   if (btnScan) {
     btnScan.addEventListener("click", () => {
       btnScan.classList.add("loading");
+      showToast("Synchronisation avec Gmail en cours...", "info");
       fetchEmails();
     });
   }
@@ -97,6 +85,7 @@ function initEventListeners() {
   const btnAudit = document.getElementById("btn-audit-spam");
   if (btnAudit) {
     btnAudit.addEventListener("click", () => {
+      showToast("Audit anti-spam en cours...", "info");
       fetchSpamAudit();
     });
   }
@@ -145,16 +134,15 @@ async function loadAppStatus() {
     const data = await res.json();
 
     const nameEl = document.getElementById("ai-current-name");
-    const descEl = document.getElementById("ai-mode-desc");
-    const setAi = document.getElementById("set-ai-provider");
+    const accountEl = document.getElementById("account-display");
     const setEmail = document.getElementById("set-email");
 
-    if (data.ai_provider) {
-      if (setAi) setAi.value = data.ai_provider;
-      if (nameEl) nameEl.textContent = data.ai_provider.toUpperCase();
+    if (data.email_address) {
+      if (accountEl) accountEl.textContent = data.email_address;
+      if (setEmail) setEmail.value = data.email_address;
     }
-    if (data.email_address && setEmail) {
-      setEmail.value = data.email_address;
+    if (data.ai_provider && nameEl) {
+      nameEl.textContent = `Ollama (${data.ai_model || 'Local'})`;
     }
   } catch (err) {
     console.error("Erreur chargement statut:", err);
@@ -164,10 +152,10 @@ async function loadAppStatus() {
 async function fetchEmails() {
   const container = document.getElementById("emails-list-container");
   const scanStatus = document.getElementById("scan-status-text");
-  if (scanStatus) scanStatus.textContent = "Analyse en cours...";
+  if (scanStatus) scanStatus.textContent = "Lecture Gmail...";
 
   try {
-    const res = await fetch(`/api/emails/scan?demo=${isDemoMode}`);
+    const res = await fetch("/api/emails/scan");
     const data = await res.json();
     currentEmails = data.emails || [];
 
@@ -175,15 +163,20 @@ async function fetchEmails() {
     renderEmailsList();
 
     if (scanStatus) {
-      scanStatus.textContent = data.is_live ? "Connecté en Direct" : "Mode Démo";
+      scanStatus.textContent = data.is_live ? "Gmail Connecté ✅" : "Erreur connexion";
     }
 
-    // Sélectionner automatiquement le 1er email
+    if (data.is_live) {
+      showToast(`${currentEmails.length} emails synchronisés avec succès depuis Gmail !`);
+    } else if (data.error) {
+      showToast(`Erreur Gmail : ${data.error}`, "error");
+    }
+
     if (currentEmails.length > 0) {
       selectEmail(currentEmails[0]);
     }
   } catch (err) {
-    showToast("Erreur lors de la récupération des emails", "error");
+    showToast("Erreur de connexion au serveur local", "error");
   } finally {
     const btnScan = document.getElementById("btn-scan");
     if (btnScan) btnScan.classList.remove("loading");
@@ -312,14 +305,13 @@ async function saveDraft() {
         uid: selectedEmail.uid,
         recipient: recipient,
         subject: subject,
-        body: body,
-        is_demo: isDemoMode,
+        body: body
       })
     });
 
     const data = await res.json();
     if (data.success) {
-      showToast(data.message || "Brouillon enregistré avec succès !");
+      showToast(data.message || "Brouillon enregistré dans votre dossier Brouillons Gmail !");
     } else {
       showToast(data.detail || "Erreur lors de l'enregistrement", "error");
     }
@@ -334,7 +326,7 @@ async function fetchSpamAudit() {
   if (!tbody) return;
 
   try {
-    const res = await fetch(`/api/spam/audit?demo=${isDemoMode}`);
+    const res = await fetch("/api/spam/audit");
     const data = await res.json();
     const senders = data.senders || [];
 
@@ -342,7 +334,7 @@ async function fetchSpamAudit() {
     tbody.innerHTML = "";
 
     if (senders.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">Aucun expéditeur de spam détecté.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">Aucun expéditeur de spam volumineux détecté dans Gmail.</td></tr>`;
       return;
     }
 
@@ -350,7 +342,7 @@ async function fetchSpamAudit() {
       const tr = document.createElement("tr");
       const samples = s.sample_subjects.join(" | ");
       const unsubBadge = s.has_unsubscribe 
-        ? `<span class="badge-tag" style="background: rgba(16,185,129,0.2); color:#A7F3D0;">✅ Dispo</span>`
+        ? `<span class="badge-tag" style="background: rgba(16,185,129,0.2); color:#A7F3D0;">✅ 1-Click Dispo</span>`
         : `<span class="badge-tag" style="background: rgba(245,158,11,0.2); color:#FDE68A;">⚠️ Manuel</span>`;
 
       tr.innerHTML = `
@@ -372,7 +364,6 @@ async function fetchSpamAudit() {
       tbody.appendChild(tr);
     });
 
-    // Attacher événements des boutons
     document.querySelectorAll(".btn-unsub").forEach(btn => {
       btn.addEventListener("click", async (e) => {
         const url = btn.getAttribute("data-url");
@@ -390,7 +381,7 @@ async function fetchSpamAudit() {
             showToast("Désabonnement réussi ! Vous ne recevrez plus ces emails.");
             btn.textContent = "✅ Désabonné";
           } else {
-            showToast("Désabonnement automatique partiel. Ouverture du lien...", "info");
+            showToast("Ouverture de la page de désabonnement...", "info");
             window.open(url, "_blank");
             btn.textContent = "🌐 Vérifié";
           }
@@ -406,7 +397,7 @@ async function fetchSpamAudit() {
         const sender = btn.getAttribute("data-sender");
         const uids = JSON.parse(btn.getAttribute("data-uids"));
 
-        if (confirm(`Voulez-vous vraiment déplacer les emails de "${sender}" vers la corbeille ?`)) {
+        if (confirm(`Voulez-vous vraiment déplacer les emails de "${sender}" vers la corbeille Gmail ?`)) {
           btn.textContent = "Nettoyage...";
           btn.disabled = true;
 
@@ -414,7 +405,7 @@ async function fetchSpamAudit() {
             const res = await fetch("/api/spam/delete", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ sender_email: sender, uids: uids, is_demo: isDemoMode })
+              body: JSON.stringify({ sender_email: sender, uids: uids })
             });
             const result = await res.json();
             showToast(result.message || "Emails nettoyés avec succès !");
@@ -458,6 +449,7 @@ async function saveSettings() {
     if (data.success) {
       showToast("Paramètres sauvegardés avec succès !");
       loadAppStatus();
+      fetchEmails();
     }
   } catch (err) {
     showToast("Erreur lors de la sauvegarde", "error");
