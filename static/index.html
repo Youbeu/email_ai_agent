@@ -17,12 +17,12 @@
         <div class="brand-icon">📬</div>
         <div class="brand-text">
           <h2>Email AI Agent</h2>
-          <span>Antigravity Suite</span>
+          <span>Local-First Suite v2.0</span>
         </div>
       </div>
 
       <nav class="nav-menu">
-        <div class="nav-section-title">AUTOMATISATIONS</div>
+        <div class="nav-section-title">MESSAGERIE & IA</div>
         <button class="nav-item active" data-tab="tab-emails">
           <span class="nav-icon">📨</span>
           <span class="nav-label">Tri & Brouillons</span>
@@ -30,28 +30,13 @@
         </button>
         <button class="nav-item" data-tab="tab-spam">
           <span class="nav-icon">🚫</span>
-          <span class="nav-label">Fouiller les Spams</span>
-          <span class="nav-badge alert" id="badge-spam">41</span>
+          <span class="nav-label">Fouille Dossier Spam</span>
+          <span class="nav-badge alert" id="badge-spam">0</span>
         </button>
-        <button class="nav-item" data-tab="tab-journal">
-          <span class="nav-icon">📓</span>
-          <span class="nav-label">Carnet de Bord (P2)</span>
-          <span class="pill-soon">Bientôt</span>
-        </button>
-        <button class="nav-item" data-tab="tab-cleaner">
-          <span class="nav-icon">🧹</span>
-          <span class="nav-label">Ménage Fichiers (P3)</span>
-          <span class="pill-soon">Bientôt</span>
-        </button>
-        <button class="nav-item" data-tab="tab-watcher">
-          <span class="nav-icon">🌐</span>
-          <span class="nav-label">Veilleur IA (P4)</span>
-          <span class="pill-soon">Bientôt</span>
-        </button>
-        <button class="nav-item" data-tab="tab-brief">
-          <span class="nav-icon">🤝</span>
-          <span class="nav-label">Brief Réunion (P5)</span>
-          <span class="pill-soon">Bientôt</span>
+        <button class="nav-item" data-tab="tab-audit">
+          <span class="nav-icon">📊</span>
+          <span class="nav-label">Audit & Désabonnement</span>
+          <span class="nav-badge" id="badge-audit">0</span>
         </button>
 
         <div class="nav-section-title" style="margin-top: 24px;">CONFIGURATION</div>
@@ -64,10 +49,10 @@
       <div class="sidebar-footer">
         <div class="ai-status-card">
           <div class="ai-status-header">
-            <span class="status-indicator live" id="ai-status-dot"></span>
-            <span class="ai-name" id="ai-current-name">Ollama (Qwen 2.5)</span>
+            <span class="status-indicator" id="ai-status-dot"></span>
+            <span class="ai-name" id="ai-current-name">Vérification IA...</span>
           </div>
-          <div class="ai-mode-text" id="ai-mode-desc">100% Local / Hors-Ligne</div>
+          <div class="ai-mode-text" id="ai-mode-desc">100% Local & Protégé</div>
         </div>
       </div>
     </aside>
@@ -78,23 +63,27 @@
       <header class="top-bar">
         <div class="page-title">
           <h1 id="page-title-text">Tri des Emails & Brouillons</h1>
-          <p id="page-subtitle-text">Boîte Gmail connectée et synchronisée en direct.</p>
+          <p id="page-subtitle-text">Synchronisation IMAP sécurisée et analyse IA locale.</p>
         </div>
 
         <div class="top-actions">
           <div class="folder-selector-pill">
             <button class="folder-btn active" id="btn-folder-inbox" data-folder="inbox">📥 Boîte Réception</button>
-            <button class="folder-btn" id="btn-folder-spam" data-folder="spam">🚫 Dossier Spam (41)</button>
+            <button class="folder-btn" id="btn-folder-spam" data-folder="spam">🚫 Dossier Spam</button>
           </div>
           <div class="depth-selector-pill">
             <button class="depth-btn active" data-limit="25">25 récents</button>
             <button class="depth-btn" data-limit="50">50 récents</button>
           </div>
           <div class="mode-switch-wrapper">
-            <span class="status-indicator live"></span>
-            <span class="switch-label" id="account-display">Boîte Connectée</span>
+            <span class="status-indicator" id="conn-status-dot"></span>
+            <span class="switch-label" id="account-display">Non configuré</span>
           </div>
-          <button class="btn btn-primary" id="btn-scan">
+          <button class="btn btn-success" id="btn-agent-routine" title="Exécuter la routine autonome : Tri IA + Création des brouillons">
+            <span class="btn-icon">🤖</span>
+            <span>Routine Auto</span>
+          </button>
+          <button class="btn btn-primary" id="btn-scan" title="Rafraîchir depuis le serveur IMAP">
             <span class="btn-icon">⚡</span>
             <span id="btn-scan-text">Scanner</span>
           </button>
@@ -115,7 +104,7 @@
           <div class="kpi-card">
             <div class="kpi-icon green">✍️</div>
             <div class="kpi-info">
-              <span class="kpi-label">Brouillons rédigés</span>
+              <span class="kpi-label">Brouillons prêts</span>
               <h3 class="kpi-value" id="kpi-drafts">0</h3>
             </div>
           </div>
@@ -151,36 +140,54 @@
         <div class="split-layout">
           <div class="emails-pane">
             <div class="pane-header">
-              <h3 id="pane-folder-title">Boîte de réception Gmail</h3>
-              <span class="pane-sub" id="scan-status-text">Synchronisation...</span>
+              <h3 id="pane-folder-title">Boîte de réception</h3>
+              <span class="pane-sub" id="scan-status-text">Prêt</span>
             </div>
             <div class="emails-list" id="emails-list-container">
-              <!-- Dynamically populated -->
+              <!-- Dynamically populated via safe DOM -->
             </div>
           </div>
 
           <div class="draft-pane">
             <div class="pane-header">
-              <h3>✍️ Assistant & Actions</h3>
+              <h3>🔎 Lecture & Assistant de Réponse IA</h3>
               <span class="badge-tag" id="draft-category-badge">Sélectionnez un email</span>
             </div>
 
             <div class="draft-editor-box" id="draft-editor-container">
               <div class="empty-state" id="draft-empty-state">
                 <div class="empty-icon">📝</div>
-                <p>Cliquez sur un email dans la liste pour voir l'analyse, restaurer s'il est dans le spam, ou éditer la réponse rédigée par l'IA.</p>
+                <p>Sélectionnez un email à gauche pour lire son contenu complet, générer une réponse IA sur-mesure ou le restaurer.</p>
               </div>
 
               <div class="draft-form" id="draft-form" style="display: none;">
                 <!-- Special Action Bar if email is in SPAM folder -->
                 <div id="spam-action-banner" class="spam-action-banner" style="display: none;">
                   <div class="spam-banner-text">
-                    <strong>⚠️ Cet email est actuellement dans votre dossier Spam</strong>
-                    <span id="spam-banner-reason">Restaurez-le pour le recevoir dans votre boîte de réception.</span>
+                    <strong>⚠️ Cet email se trouve dans votre dossier Spam</strong>
+                    <span id="spam-banner-reason">Restaurez-le pour le déplacer dans votre boîte de réception principale.</span>
                   </div>
                   <button class="btn btn-sm btn-success" id="btn-restore-to-inbox">
-                    <span>📥 Transférer vers ma Boîte de Réception</span>
+                    <span>📥 Restaurer dans Inbox</span>
                   </button>
+                </div>
+
+                <!-- Aperçu du corps de l'email reçu -->
+                <div class="email-reader-box">
+                  <div class="email-reader-header">
+                    <span id="reader-sender-info">De : —</span>
+                    <span id="reader-date-info">—</span>
+                  </div>
+                  <div class="email-reader-body" id="reader-body-text"></div>
+                </div>
+
+                <!-- Barre d'intentions rapides IA -->
+                <div class="ai-intent-bar">
+                  <span class="ai-intent-label">✨ Rédiger avec l'IA :</span>
+                  <button type="button" class="btn-intent" data-instruction="Répondre de manière complète et professionnelle">🔄 Régénérer</button>
+                  <button type="button" class="btn-intent" data-instruction="Accepter la demande ou confirmer le créneau proposé">👍 Accepter</button>
+                  <button type="button" class="btn-intent" data-instruction="Accuser réception et demander un léger délai le temps de vérifier les éléments">⏳ Demander un délai</button>
+                  <button type="button" class="btn-intent" data-instruction="Décliner poliment la proposition ou le démarchage">✋ Décliner poliment</button>
                 </div>
 
                 <div class="form-group">
@@ -188,20 +195,20 @@
                   <input type="text" id="draft-recipient" readonly class="input-readonly">
                 </div>
                 <div class="form-group">
-                  <label>Sujet</label>
+                  <label>Sujet de la réponse</label>
                   <input type="text" id="draft-subject" class="input-text">
                 </div>
                 <div class="form-group">
                   <div class="form-label-row">
-                    <label>Corps du message / Réponse IA</label>
-                    <span class="hint-text">Modifiez librement avant synchronisation</span>
+                    <label>Brouillon de réponse (rattaché au fil Gmail)</label>
+                    <span class="hint-text" id="draft-engine-hint">Modifiable avant sauvegarde</span>
                   </div>
-                  <textarea id="draft-body" rows="8" class="input-textarea"></textarea>
+                  <textarea id="draft-body" rows="6" class="input-textarea"></textarea>
                 </div>
                 <div class="draft-actions">
-                  <button class="btn btn-secondary" id="btn-copy-draft">📋 Copier le texte</button>
+                  <button class="btn btn-secondary" id="btn-copy-draft">📋 Copier</button>
                   <button class="btn btn-success" id="btn-save-draft">
-                    <span>💾 Enregistrer Brouillon Gmail</span>
+                    <span>💾 Enregistrer dans Brouillons</span>
                   </button>
                 </div>
               </div>
@@ -210,128 +217,152 @@
         </div>
       </section>
 
-      <!-- TAB 2: Anti-Spam & Fouille Approfondie -->
+      <!-- TAB 2: Fouille Dossier Spam -->
       <section class="tab-content" id="tab-spam">
         <div class="section-intro">
           <div class="intro-text">
-            <h2>Fouille Approfondie du Dossier Spam ([Gmail]/Spam)</h2>
-            <p>Détectez et restaurez vos faux positifs (projets, invitations, devis) égarés dans les spams par Google, et désabonnez-vous des vrais spams en 1 clic.</p>
+            <h2>Fouille Approfondie du Dossier Spam</h2>
+            <p>Identifiez les faux positifs légitimes (devis, projets, notifications fiables) tout en bloquant le phishing et les arnaques.</p>
           </div>
           <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             <button class="btn btn-primary" id="btn-scan-spam-deep">
               <span class="btn-icon">🔍</span>
-              <span>Re-Scanner les Spams (41)</span>
+              <span>Scanner le Dossier Spam</span>
             </button>
             <button class="btn btn-success" id="btn-restore-all-false-pos">
               <span class="btn-icon">📥</span>
-              <span id="btn-restore-all-text">Restaurer tous les Faux Positifs</span>
-            </button>
-            <button class="btn btn-secondary" id="btn-audit-senders">
-              <span class="btn-icon">📊</span>
-              <span>Auditer Expéditeurs</span>
+              <span id="btn-restore-all-text">Restaurer les Faux Positifs (0)</span>
             </button>
           </div>
         </div>
 
         <div class="spam-table-card">
-          <div class="table-header-bar">
-            <h3 id="spam-table-title">Emails Détectés dans [Gmail]/Spam</h3>
-            <span class="badge-tag" id="spam-table-count">41 emails</span>
+          <div class="table-header-bar" style="padding: 16px 18px 0 18px;">
+            <h3 id="spam-table-title">Emails dans le dossier Spam</h3>
+            <span class="badge-tag" id="spam-table-count">0 email</span>
           </div>
           <table class="modern-table">
             <thead>
               <tr>
                 <th>Expéditeur & Sujet</th>
-                <th>Diagnostic IA & Raison</th>
+                <th>Diagnostic IA / Anti-Phishing</th>
                 <th>Désabonnement</th>
-                <th>Action Immédiate</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody id="spam-table-body">
-              <!-- Dynamically populated -->
+              <!-- Populated safely -->
             </tbody>
           </table>
         </div>
       </section>
 
-      <!-- TAB: Bientôt disponibles (P2 à P5) -->
-      <section class="tab-content" id="tab-journal">
-        <div class="placeholder-card">
-          <div class="card-icon">📓</div>
-          <h2>Projet 2 : Le Carnet de Bord Automatique du Soir</h2>
-          <p>Enregistrez un court message vocal ou écrivez 3 puces à 18h. L'IA extrait vos accomplissements clés, vos blocages et prépare votre to-do du lendemain dans un journal Markdown / Notion.</p>
-          <span class="badge-soon">Prochaine étape</span>
+      <!-- TAB 3: Audit des Newsletters & Expéditeurs Volumineux -->
+      <section class="tab-content" id="tab-audit">
+        <div class="section-intro">
+          <div class="intro-text">
+            <h2>Audit des Expéditeurs Volumineux & Désabonnement 1-Click</h2>
+            <p>Regroupe les expéditeurs les plus fréquents de votre boîte de réception (RFC 2369 & RFC 8058 One-Click) pour nettoyer en lot.</p>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-primary" id="btn-audit-senders">
+              <span class="btn-icon">📊</span>
+              <span>Lancer l'Audit de la Boîte</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="spam-table-card">
+          <div class="table-header-bar" style="padding: 16px 18px 0 18px;">
+            <h3>Expéditeurs Récurrents Détectés</h3>
+            <span class="badge-tag" id="audit-table-count">0 expéditeur</span>
+          </div>
+          <table class="modern-table">
+            <thead>
+              <tr>
+                <th>Expéditeur & Exemples de Sujets</th>
+                <th>Volume</th>
+                <th>Désabonnement</th>
+                <th>Nettoyage en Lot</th>
+              </tr>
+            </thead>
+            <tbody id="audit-table-body">
+              <tr>
+                <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                  Cliquez sur « Lancer l'Audit de la Boîte » pour analyser les expéditeurs récurrents.
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
 
-      <section class="tab-content" id="tab-cleaner">
-        <div class="placeholder-card">
-          <div class="card-icon">🧹</div>
-          <h2>Projet 3 : Le Ménage intelligent du Vendredi</h2>
-          <p>Scan et classement automatique de votre dossier Téléchargements (Factures classées en compta, captures rangées, vieux installeurs suggérés à la suppression en toute sécurité avec Undo).</p>
-          <span class="badge-soon">Prochaine étape</span>
-        </div>
-      </section>
-
-      <section class="tab-content" id="tab-watcher">
-        <div class="placeholder-card">
-          <div class="card-icon">🌐</div>
-          <h2>Projet 4 : Le Veilleur Personnel Sectoriel</h2>
-          <p>Agrégateur de flux RSS et de sources ciblées avec synthèse automatique bi-hebdomadaire en 5 points clés avec liens sources.</p>
-          <span class="badge-soon">Prochaine étape</span>
-        </div>
-      </section>
-
-      <section class="tab-content" id="tab-brief">
-        <div class="placeholder-card">
-          <div class="card-icon">🤝</div>
-          <h2>Projet 5 : Le Brief Avant Réunion</h2>
-          <p>Fiche mémo contextuelle générée 15 minutes avant chaque rendez-vous avec historique des échanges et promesses actées.</p>
-          <span class="badge-soon">Prochaine étape</span>
-        </div>
-      </section>
-
-      <!-- TAB: Paramètres -->
+      <!-- TAB 4: Paramètres -->
       <section class="tab-content" id="tab-settings">
         <div class="settings-grid">
           <div class="settings-card">
-            <h3>📬 Identifiants Email (IMAP/SMTP)</h3>
-            <p class="settings-desc">Vos identifiants restent 100% sécurisés et stockés uniquement sur votre machine locale.</p>
-            
+            <h3>📬 Identifiants Email (IMAP / SMTP)</h3>
+            <p class="settings-desc">Stockés exclusivement dans votre fichier <code>.env</code> local (jamais partagés).</p>
+
             <div class="form-group">
               <label>Adresse Email</label>
               <input type="email" id="set-email" placeholder="votre_adresse@gmail.com" class="input-text">
             </div>
             <div class="form-group">
-              <label>Mot de passe d'application</label>
-              <input type="password" id="set-password" placeholder="Mot de passe d'application (16 lettres)" class="input-text">
-              <span class="field-hint">Mot de passe d'application Gmail 16 lettres</span>
+              <label>Mot de passe d'application <span id="pwd-status-badge" class="field-hint"></span></label>
+              <input type="password" id="set-password" placeholder="Laisser vide pour conserver le mot de passe actuel" class="input-text">
+              <span class="field-hint">Sur Gmail : Compte Google &rarr; Sécurité &rarr; Validation en 2 étapes &rarr; Mots de passe d'application (16 caractères).</span>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 6px;">
+              <button type="button" class="btn btn-secondary" id="btn-test-conn" style="width: 100%;">
+                <span>🔌 Tester la Connexion IMAP &amp; le Moteur IA</span>
+              </button>
+            </div>
+            <div id="conn-test-result" class="email-reader-box" style="display: none; max-height: 120px; font-size: 12px;"></div>
+
+            <h3 style="margin-top: 12px;">📜 Journal d'Activité de l'Agent</h3>
+            <div id="agent-logs-box" class="email-reader-box" style="max-height: 170px; font-family: var(--font-mono); font-size: 11.5px;">
+              Chargement du journal...
             </div>
           </div>
 
           <div class="settings-card">
             <h3>🧠 Moteur d'Intelligence Artificielle</h3>
-            <p class="settings-desc">Choisissez l'IA qui trie et rédige pour vous.</p>
+            <p class="settings-desc">Configurez votre modèle local Ollama ou vos clés API Cloud.</p>
 
             <div class="form-group">
               <label>Fournisseur d'IA</label>
               <select id="set-ai-provider" class="input-select">
-                <option value="ollama" selected>Ollama Local (100% Hors-ligne - Qwen 2.5 / Llama3)</option>
-                <option value="gemini">Google Gemini 2.5 Flash (Gratuit & Ultra rapide)</option>
-                <option value="heuristic">Règles locales heuristiques (Sans clé API)</option>
+                <option value="ollama">Ollama Local (100% Hors-ligne - Recommandé)</option>
+                <option value="gemini">Google Gemini (2.5 Flash)</option>
                 <option value="openai">OpenAI (GPT-4o mini)</option>
-                <option value="claude">Anthropic Claude 3.5 Sonnet</option>
+                <option value="claude">Anthropic Claude (3.5 Haiku / Sonnet)</option>
+                <option value="heuristic">Heuristique Locale Pure (0 ms, sans LLM)</option>
               </select>
             </div>
 
-            <div class="form-group" id="group-gemini-key">
-              <label>Clé API Google Gemini (optionnel)</label>
-              <input type="password" id="set-gemini-key" placeholder="AIzaSy..." class="input-text">
+            <div class="form-group">
+              <label>Modèle IA (Tag Ollama ou nom du modèle Cloud)</label>
+              <input type="text" id="set-ai-model" placeholder="qwen2.5-coder:7b" value="qwen2.5-coder:7b" class="input-text">
+            </div>
+
+            <div class="form-group">
+              <label>Clé API Google Gemini <span id="gemini-key-badge" class="field-hint"></span></label>
+              <input type="password" id="set-gemini-key" placeholder="Laisser vide pour conserver la clé existante" class="input-text">
+            </div>
+
+            <div class="form-group">
+              <label>Clé API OpenAI / Anthropic (optionnel)</label>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <input type="password" id="set-openai-key" placeholder="OpenAI (sk-...)" class="input-text">
+                <input type="password" id="set-anthropic-key" placeholder="Anthropic (sk-ant-...)" class="input-text">
+              </div>
             </div>
 
             <div class="form-group">
               <label>Ton des réponses rédigées</label>
-              <input type="text" id="set-tone" value="professionnel, bienveillant et concis" class="input-text">
+              <input type="text" id="set-tone" value="professionnel, bienveillant, clair et concis" class="input-text">
             </div>
 
             <div class="form-group">
@@ -339,7 +370,7 @@
               <textarea id="set-signature" rows="2" class="input-textarea">Cordialement,&#10;[Votre Nom]</textarea>
             </div>
 
-            <button class="btn btn-primary" id="btn-save-settings" style="width: 100%; margin-top: 16px;">
+            <button class="btn btn-primary" id="btn-save-settings" style="width: 100%; margin-top: 10px;">
               <span>💾 Enregistrer les paramètres</span>
             </button>
           </div>

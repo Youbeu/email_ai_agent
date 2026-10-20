@@ -957,3 +957,75 @@ input:checked + .slider:before {
   color: var(--text-main);
 }
 
+/* Email Reader Preview Box */
+.email-reader-box {
+  background: rgba(11, 15, 25, 0.75);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 155px;
+  overflow-y: auto;
+}
+
+.email-reader-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--accent-cyan);
+  font-weight: 600;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 6px;
+}
+
+.email-reader-body {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
+/* AI Intent Quick Action Bar */
+.ai-intent-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px 0;
+}
+
+.ai-intent-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--accent-cyan);
+  margin-right: 4px;
+}
+
+.btn-intent {
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: #C7D2FE;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-intent:hover {
+  background: rgba(99, 102, 241, 0.28);
+  color: white;
+}
+
+.btn-intent:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+

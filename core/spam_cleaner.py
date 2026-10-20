@@ -1,8 +1,8 @@
 """
 Module d'audit de boîte mail et de nettoyage ciblé des spams et newsletters récurrentes.
+Utilise la suppression par lot (Batch UID) pour nettoyer des dizaines d'emails instantanément.
 """
-from typing import List, Dict, Any, Optional
-from collections import defaultdict
+from typing import List, Dict, Optional
 from core.email_client import UniversalEmailClient, EmailMessageData
 from core.unsubscriber import Unsubscriber, UnsubscribeInfo
 
@@ -24,7 +24,10 @@ class SenderAuditInfo:
             self.sample_subjects.append(email_data.subject)
         if not self.latest_date:
             self.latest_date = email_data.date_str
-        if unsub_info.has_unsubscribe and not self.unsubscribe_info:
+        if unsub_info.has_unsubscribe and (
+            not self.unsubscribe_info
+            or (unsub_info.supports_rfc8058_one_click and not self.unsubscribe_info.supports_rfc8058_one_click)
+        ):
             self.unsubscribe_info = unsub_info
 
 
@@ -33,11 +36,11 @@ class SpamCleaner:
         self.client = email_client
         self.unsubscriber = unsubscriber or Unsubscriber()
 
-    def audit_inbox(self, limit: int = 150) -> List[SenderAuditInfo]:
+    def audit_inbox(self, limit: int = 150, folder: str = "INBOX") -> List[SenderAuditInfo]:
         """
-        Scanne la boîte de réception pour regrouper les emails par expéditeur et identifier les newsletters/spams.
+        Scanne le dossier cible pour regrouper les emails par expéditeur et identifier les newsletters/spams récurrents.
         """
-        emails = self.client.fetch_emails(folder="INBOX", unread_only=False, since_days=30, limit=limit)
+        emails = self.client.fetch_emails(folder=folder, unread_only=False, since_days=60, limit=limit)
         senders_map: Dict[str, SenderAuditInfo] = {}
 
         for em in emails:
@@ -51,16 +54,11 @@ class SpamCleaner:
             unsub_info = self.unsubscriber.detect(em)
             senders_map[key].add_email(em, unsub_info)
 
-        # Filtrer et trier par nombre d'emails décroissant
         sorted_senders = sorted(senders_map.values(), key=lambda s: s.count, reverse=True)
         return sorted_senders
 
-    def clean_sender_emails(self, sender_info: SenderAuditInfo, dry_run: bool = False) -> int:
+    def clean_sender_emails(self, sender_info: SenderAuditInfo, folder: str = "INBOX", dry_run: bool = False) -> int:
         """
-        Supprime / Déplace vers la corbeille tous les emails d'un expéditeur donné.
+        Déplace vers la corbeille tous les emails d'un expéditeur donné en une seule opération Batch UID.
         """
-        deleted_count = 0
-        for uid in sender_info.uids:
-            if self.client.move_to_trash(uid, dry_run=dry_run):
-                deleted_count += 1
-        return deleted_count
+        return self.client.move_to_trash_batch(sender_info.uids, from_folder=folder, dry_run=dry_run)

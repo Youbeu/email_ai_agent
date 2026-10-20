@@ -1,9 +1,8 @@
 @echo off
-title Email AI Agent - Assistant Intelligent & Anti-Spam
+title Email AI Agent v2.0 - Poste de Pilotage
 cd /d "%~dp0"
-echo ===================================================
-echo   Email AI Agent - Antigravity Suite
-echo   Demarrage de l'application Desktop connectee a Gmail...
-echo ===================================================
-python desktop_app.py
-pause
+if exist "dist\Email_AI_Agent\Email_AI_Agent.exe" (
+    start "" "dist\Email_AI_Agent\Email_AI_Agent.exe"
+) else (
+    start "" pythonw desktop_app.py
+)

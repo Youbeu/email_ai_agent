@@ -6,13 +6,13 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[('static', 'static'), ('config.yaml', '.')],
-    hiddenimports=['uvicorn', 'fastapi', 'webview', 'litellm', 'pydantic', 'dotenv', 'yaml'],
+    hiddenimports=['uvicorn', 'fastapi', 'webview', 'pydantic', 'dotenv', 'yaml', 'sqlite3'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['django', 'boto3', 'botocore', 'psycopg2', 'redis', 'numpy', 'scipy', 'pandas', 'matplotlib', 'tkinter'],
     noarchive=False,
-    optimize=0,
+    optimize=1,
 )
 pyz = PYZ(a.pure)
 
